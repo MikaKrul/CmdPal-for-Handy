@@ -49,6 +49,20 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- The Command Palette WinMD is a contract-only interface file. It has no
+       in-process implementation to register; the extension's COM server is
+       registered explicitly in Package.appxmanifest. Keep it in the package,
+       but do not ask MSIX tooling to harvest activatable classes from it. -->
+  <Target Name="SkipCommandPaletteContractWinmdHarvest"
+          BeforeTargets="_CalculateInputsForGenerateCurrentProjectAppxManifest">
+    <ItemGroup>
+      <PackagingOutputs Update="@(PackagingOutputs)"
+                        Condition="'%(PackagingOutputs.Filename)' == 'Microsoft.CommandPalette.Extensions' and '%(PackagingOutputs.Extension)' == '.winmd'">
+        <SkipHarvestingWinmdRegistration>true</SkipHarvestingWinmdRegistration>
+      </PackagingOutputs>
+    </ItemGroup>
+  </Target>
+
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
     Explorer "Package and Publish" context menu entry to be enabled for this project even if
