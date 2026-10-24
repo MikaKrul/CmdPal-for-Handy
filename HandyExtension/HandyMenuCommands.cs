@@ -41,23 +41,8 @@ internal static class HandyMenuContextItems
         },
     ];
 
-    public static IContextItem[] All(HandyMenuItemDef definition, Action refresh) =>
+    public static IContextItem[] Reset(HandyMenuItemDef definition, Action refresh) =>
     [
-        new CommandContextItem(new HandyPlacementCommand(definition, HandyMenuPlacement.Home, refresh))
-        {
-            Title = "Show on home page",
-            Subtitle = "Pin this command to the home page",
-        },
-        new CommandContextItem(new HandyPlacementCommand(definition, HandyMenuPlacement.More, refresh))
-        {
-            Title = "Move to More page",
-            Subtitle = "Show this command on the More page",
-        },
-        new CommandContextItem(new HandyPlacementCommand(definition, HandyMenuPlacement.Hidden, refresh))
-        {
-            Title = "Hide from menus",
-            Subtitle = "Remove this command from both pages",
-        },
         new CommandContextItem(new HandyResetPlacementCommand(definition, refresh))
         {
             Title = "Reset to default",
@@ -101,32 +86,77 @@ internal sealed partial class HandyPlacementCommand : InvokableCommand
     }
 }
 
-internal sealed partial class HandyCyclePlacementCommand : InvokableCommand
+/// <summary>
+/// The submenu opened from Customize Menu. Lists the three placements for one command
+/// with the current choice marked, so picking a new placement is explicit instead of
+/// a hidden cycle.
+/// </summary>
+internal sealed partial class HandyPlacementPage : ListPage
 {
     private readonly HandyMenuItemDef _definition;
     private readonly Action _refresh;
 
-    public HandyCyclePlacementCommand(HandyMenuItemDef definition, Action refresh)
+    public HandyPlacementPage(HandyMenuItemDef definition, Action refresh)
     {
         _definition = definition;
         _refresh = refresh;
-        Name = $"Change where '{definition.Title}' appears";
+        Name = "Choose placement";
+        Title = definition.Title;
+        Icon = HandyMenuRegistry.Icon(definition);
+        PlaceholderText = "Choose where this command appears";
+    }
+
+    public override IListItem[] GetItems()
+    {
+        var placements = HandyMenuConfig.Load();
+        var current = placements.TryGetValue(_definition.Id, out var placement)
+            ? placement
+            : _definition.DefaultPlacement;
+
+        return
+        [
+            PlacementRow(HandyMenuPlacement.Home, current, "Home page", "Show on the extension's home page", "\uE80F"),
+            PlacementRow(HandyMenuPlacement.More, current, "More page", "Show on the More page", "\uE712"),
+            PlacementRow(HandyMenuPlacement.Hidden, current, "Hidden", "Remove from both pages; restore it from Customize Menu", "\uE74D"),
+        ];
+    }
+
+    private ListItem PlacementRow(HandyMenuPlacement placement, HandyMenuPlacement current, string title, string subtitle, string glyph)
+    {
+        var isCurrent = placement == current;
+        return new ListItem(new HandyPlacementChoiceCommand(_definition, placement, _refresh))
+        {
+            Title = title,
+            Subtitle = isCurrent ? $"{subtitle} - Current" : subtitle,
+            Icon = new IconInfo(isCurrent ? "\uE8FB" : glyph),
+        };
+    }
+}
+
+internal sealed partial class HandyPlacementChoiceCommand : InvokableCommand
+{
+    private readonly HandyMenuItemDef _definition;
+    private readonly HandyMenuPlacement _placement;
+    private readonly Action _refresh;
+
+    public HandyPlacementChoiceCommand(HandyMenuItemDef definition, HandyMenuPlacement placement, Action refresh)
+    {
+        _definition = definition;
+        _placement = placement;
+        _refresh = refresh;
+        Name = placement switch
+        {
+            HandyMenuPlacement.Home => "Home page",
+            HandyMenuPlacement.More => "More page",
+            _ => "Hidden",
+        };
     }
 
     public override ICommandResult Invoke()
     {
-        var placements = HandyMenuConfig.Load();
-        placements.TryGetValue(_definition.Id, out var current);
-        var next = current switch
-        {
-            HandyMenuPlacement.Home => HandyMenuPlacement.More,
-            HandyMenuPlacement.More => HandyMenuPlacement.Hidden,
-            _ => HandyMenuPlacement.Home,
-        };
-
         try
         {
-            HandyMenuConfig.SetPlacement(_definition.Id, next);
+            HandyMenuConfig.SetPlacement(_definition.Id, _placement);
         }
         catch (Exception)
         {
@@ -134,7 +164,7 @@ internal sealed partial class HandyCyclePlacementCommand : InvokableCommand
         }
 
         _refresh();
-        return CommandResult.KeepOpen();
+        return CommandResult.GoBack();
     }
 }
 
@@ -210,12 +240,12 @@ internal sealed partial class HandyCustomizeMenuPage : ListPage
         var items = HandyMenuItems.Items
             .OrderBy(definition => PlacementGroup(placements, definition))
             .ThenBy(definition => definition.Order)
-            .Select(definition => new ListItem(new HandyCyclePlacementCommand(definition, RaiseMenuLayoutChanged))
+            .Select(definition => new ListItem(new HandyPlacementPage(definition, RaiseMenuLayoutChanged))
             {
                 Title = definition.Title,
                 Subtitle = HandyMenuConfig.ToPlacementLabel(Placement(placements, definition)),
                 Icon = HandyMenuRegistry.Icon(definition),
-                MoreCommands = HandyMenuContextItems.All(definition, RaiseMenuLayoutChanged),
+                MoreCommands = HandyMenuContextItems.Reset(definition, RaiseMenuLayoutChanged),
             })
             .ToList();
 
