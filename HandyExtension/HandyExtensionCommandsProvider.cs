@@ -18,7 +18,7 @@ public partial class HandyExtensionCommandsProvider : CommandProvider
         DisplayName = "Handy";
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         _settings = new Settings();
-        _settings.AddSetting(new TextSetting(
+        _settings.Add(new TextSetting(
             "handyExecutablePath",
             "Handy executable path",
             "Optional full path to handy.exe. Leave blank to search PATH and common install folders.",

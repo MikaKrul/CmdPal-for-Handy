@@ -29,7 +29,7 @@ public sealed class HandyExecutableLocatorTests
     }
 
     [TestMethod]
-    public void Find_UsesConfiguredPathWithSpaces()
+    public void FindUsesConfiguredPathWithSpaces()
     {
         var executable = Path.Combine(_directory, "handy.exe");
         File.WriteAllBytes(executable, []);
@@ -38,7 +38,7 @@ public sealed class HandyExecutableLocatorTests
     }
 
     [TestMethod]
-    public void Find_DoesNotSilentlyUseAnotherExecutableWhenConfiguredPathIsInvalid()
+    public void FindDoesNotUseAnotherExecutableWhenConfiguredPathIsInvalid()
     {
         var executable = Path.Combine(_directory, "handy.exe");
         File.WriteAllBytes(executable, []);
@@ -48,7 +48,7 @@ public sealed class HandyExecutableLocatorTests
     }
 
     [TestMethod]
-    public void Find_SearchesPathWhenNoOverrideIsConfigured()
+    public void FindSearchesPathWhenNoOverrideIsConfigured()
     {
         var executable = Path.Combine(_directory, "handy.exe");
         File.WriteAllBytes(executable, []);
