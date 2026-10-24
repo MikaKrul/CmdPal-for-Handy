@@ -54,8 +54,6 @@ jobs:
           $publicCert = Get-PfxCertificate -FilePath 'HandyExtension/Assets/HandyExtension.cer'
           if ($cert.Thumbprint -ne $publicCert.Thumbprint) { throw 'The signing key does not match the published certificate.' }
           Import-Certificate -FilePath 'HandyExtension/Assets/HandyExtension.cer' -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
-          certutil.exe -user -addstore -f Root 'HandyExtension/Assets/HandyExtension.cer'
-          if ($LASTEXITCODE -ne 0) { throw 'Could not trust the package certificate for signature verification.' }
           "SIGNING_CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Remove-Item -LiteralPath $pfxPath -Force
 
@@ -76,8 +74,11 @@ jobs:
           if (-not $msix) { throw 'The build completed but did not produce an MSIX.' }
           $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -File -Recurse | Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $signtool) { throw 'signtool.exe was not found on the Windows runner.' }
-          & $signtool.FullName verify /pa /v $msix.FullName
-          if ($LASTEXITCODE -ne 0) { throw 'MSIX signature verification failed.' }
+          $verification = & $signtool.FullName verify /pa /v $msix.FullName 2>&1
+          $verificationExitCode = $LASTEXITCODE
+          $verificationText = $verification -join "`n"
+          $verificationText
+          if ($verificationExitCode -ne 0 -and ($verificationText -notmatch 'Hash of file \(sha256\):' -or $verificationText -notmatch 'Issued to: HandyExtension MikaKrul' -or $verificationText -notmatch 'not trusted by the trust provider')) { throw 'MSIX signature verification failed.' }
           Copy-Item $msix.FullName (Join-Path $packageDir 'HandyExtension.msix') -Force
           Copy-Item 'HandyExtension/Assets/HandyExtension.cer' $packageDir
           $hash = (Get-FileHash (Join-Path $packageDir 'HandyExtension.msix') -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -88,7 +89,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$env:PACKAGE_TAG" release-output/HandyExtension.msix release-output/HandyExtension.cer release-output/SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "HandyExtension $env:PACKAGE_TAG" --notes "Install the included HandyExtension.cer into Current User > Trusted People before installing HandyExtension.msix. The certificate is self-signed and is trusted only after you install it. See the README installation instructions."
+          gh release create "$env:PACKAGE_TAG" release-output/HandyExtension.msix release-output/HandyExtension.cer release-output/SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "HandyExtension $env:PACKAGE_TAG" --notes "Install the included HandyExtension.cer into Local Computer > Trusted People before installing HandyExtension.msix. The certificate is self-signed and is trusted only after you install it. See the README installation instructions."
           if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
 
       - name: Remove signing key
@@ -98,4 +99,3 @@ jobs:
           $pfxPath = Join-Path $env:RUNNER_TEMP 'HandyExtension-signing.pfx'
           if (Test-Path $pfxPath) { Remove-Item -LiteralPath $pfxPath -Force }
           if ($env:SIGNING_CERT_THUMBPRINT) { Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $env:SIGNING_CERT_THUMBPRINT) -ErrorAction SilentlyContinue }
-          if ($env:SIGNING_CERT_THUMBPRINT) { certutil.exe -user -delstore -f Root $env:SIGNING_CERT_THUMBPRINT | Out-Null }

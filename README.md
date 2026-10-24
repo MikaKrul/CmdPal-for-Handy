@@ -21,14 +21,14 @@ Control flags are handled by Handy's single-instance mechanism and are only sent
 
 Download the latest [HandyExtension release](https://github.com/MikaKrul/HandyExtension/releases/latest). It contains the signed MSIX package, the public signing certificate, and a SHA-256 checksum. You do not need Visual Studio or the .NET SDK to install it.
 
-The package uses a self-signed certificate. Windows does not trust it automatically, so install the included public certificate once for your Windows user before installing or updating the MSIX:
+The package uses a self-signed certificate. Windows does not trust it automatically, so install the included public certificate once before installing or updating the MSIX. Windows App Installer checks the **Local Machine > Trusted People** store, so this step requires administrator approval:
 
 1. Download `HandyExtension.cer` and `HandyExtension.msix` from the release.
-2. In PowerShell, from the folder containing the downloaded certificate, run `Import-Certificate -FilePath .\HandyExtension.cer -CertStoreLocation Cert:\CurrentUser\TrustedPeople`. Alternatively, double-click the `.cer`, choose **Install Certificate**, select **Current User**, then place it in **Trusted People**.
+2. Open PowerShell as Administrator. From the folder containing the downloaded certificate, run `Import-Certificate -FilePath .\HandyExtension.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople`. Alternatively, double-click the `.cer`, choose **Install Certificate**, select **Local Machine**, then place it in **Trusted People**. Do not install it in **Trusted Root Certification Authorities**.
 3. Open `HandyExtension.msix` and choose **Install**. For future updates signed by this project certificate, install the new MSIX; you do not need to import the certificate again.
 4. Install and open Handy, ensure PowerToys Command Palette is enabled, then run **Reload Command Palette Extension** and choose Handy.
 
-This certificate identifies the package publisher and lets Windows verify that the signed package has not changed. It is self-signed, not issued by a public certificate authority; you are choosing to trust this publisher on your own Windows account. The release workflow builds and signs the MSIX on GitHub Actions. Its private key is stored as encrypted GitHub Actions secrets and is never included in the repository or release.
+This certificate identifies the package publisher and lets Windows verify that the signed package has not changed. It is self-signed, not issued by a public certificate authority; you are choosing to trust this publisher on this computer. The release workflow builds and signs the MSIX on GitHub Actions. Its private key is stored as encrypted GitHub Actions secrets and is never included in the repository or release.
 
 If Handy is not found automatically, open Command Palette extension settings and set **Handy executable path** to the full path of `Handy.exe`. The setting is local to the extension host. Automatic discovery checks `PATH` and common per-user and machine installation folders; other installation layouts can use the explicit setting.
 
@@ -61,7 +61,7 @@ The automated tests cover configured executable paths and `PATH` discovery. They
 
 - **Handy was not found:** set the full `Handy.exe` path in extension settings.
 - **A control command did not act:** open Handy once, confirm the installed Handy version supports the flag, then retry. The extension cannot inspect Handy's recording state.
-- **Windows says the publisher is unknown or the package is untrusted:** install the release's `.cer` into **Current User > Trusted People**, then try the MSIX again.
+- **Windows says the publisher is unknown or the package is untrusted:** install the release's `.cer` into **Local Machine > Trusted People**, then try the MSIX again.
 - **The updated extension is not visible:** install the updated MSIX and run **Reload Command Palette Extension**.
 
 ## Privacy and security
