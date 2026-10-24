@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "HandyExtension (Package)": {
+      "commandName": "MsixPackage",
+      "doNotLaunchApp": true
+    },
+    "HandyExtension (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
