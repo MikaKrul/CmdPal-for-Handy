@@ -19,9 +19,16 @@ Control flags are handled by Handy's single-instance mechanism and are only sent
 
 ## Install and use
 
-There is not yet a downloadable HandyExtension installer or Gallery listing. Downloading this repository as a ZIP gives you source code, not an installable app. The CI workflow builds and tests the code but deliberately does not upload a package.
+Download the latest [HandyExtension release](https://github.com/MikaKrul/HandyExtension/releases/latest). It contains the signed MSIX package, the public signing certificate, and a SHA-256 checksum. You do not need Visual Studio or the .NET SDK to install it.
 
-For a local development install, use Visual Studio with the **.NET desktop development**, **Windows application development**, and **MSIX Packaging** tooling. Open `HandyExtension.sln`, select x64 or ARM64, then choose **Build > Deploy HandyExtension**. If Windows asks, enable Developer Mode. In Command Palette, run **Reload Command Palette Extension**, then choose Handy. A signed package for regular installation is not available yet.
+The package uses a self-signed certificate. Windows does not trust it automatically, so install the included public certificate once for your Windows user before installing or updating the MSIX:
+
+1. Download `HandyExtension.cer` and `HandyExtension.msix` from the release.
+2. In PowerShell, from the folder containing the downloaded certificate, run `Import-Certificate -FilePath .\HandyExtension.cer -CertStoreLocation Cert:\CurrentUser\TrustedPeople`. Alternatively, double-click the `.cer`, choose **Install Certificate**, select **Current User**, then place it in **Trusted People**.
+3. Open `HandyExtension.msix` and choose **Install**. For future updates signed by this project certificate, install the new MSIX; you do not need to import the certificate again.
+4. Install and open Handy, ensure PowerToys Command Palette is enabled, then run **Reload Command Palette Extension** and choose Handy.
+
+This certificate identifies the package publisher and lets Windows verify that the signed package has not changed. It is self-signed, not issued by a public certificate authority; you are choosing to trust this publisher on your own Windows account. The release workflow builds and signs the MSIX on GitHub Actions. Its private key is stored as encrypted GitHub Actions secrets and is never included in the repository or release.
 
 If Handy is not found automatically, open Command Palette extension settings and set **Handy executable path** to the full path of `Handy.exe`. The setting is local to the extension host. Automatic discovery checks `PATH` and common per-user and machine installation folders; other installation layouts can use the explicit setting.
 
@@ -40,7 +47,7 @@ dotnet build HandyExtension.sln --configuration Release --no-restore -p:Platform
 ## Manual end-to-end test
 
 1. Install and open Handy. Complete its first-run setup and confirm its microphone works.
-2. Install PowerToys, enable Command Palette, and deploy HandyExtension as described above.
+2. Install PowerToys, enable Command Palette, and install HandyExtension as described above.
 3. Open Command Palette (`Win`+`Alt`+`Space` by default), reload extensions, and select Handy.
 4. Confirm **Open Handy** brings the Handy window forward. If it cannot find Handy, set the full `Handy.exe` path in extension settings and retry.
 5. With Handy running, select **Toggle Transcription**. Confirm Handy shows that recording started, select the command again, then dictate a short, non-sensitive phrase into a blank Notepad document and confirm it appears.
@@ -48,13 +55,14 @@ dotnet build HandyExtension.sln --configuration Release --no-restore -p:Platform
 7. Quit Handy fully and select a control command. The extension should ask you to open Handy first, rather than launching it and implying the control action succeeded.
 8. Change the configured executable path to an invalid path and confirm the extension reports that Handy was not found; then restore the correct path.
 
-The automated tests cover configured executable paths and `PATH` discovery. They do not record audio. The real microphone and PowerToys checks above must be done on Windows.
+The automated tests cover configured executable paths and `PATH` discovery. They do not record audio. The real microphone and PowerToys checks above must be done on Windows. GitHub Actions runs these tests and a Windows x64 Release build for pushes and pull requests to `main` or `develop`. A separate manually started workflow builds, signs, verifies, and publishes the versioned MSIX GitHub Release.
 
 ## Troubleshooting
 
 - **Handy was not found:** set the full `Handy.exe` path in extension settings.
 - **A control command did not act:** open Handy once, confirm the installed Handy version supports the flag, then retry. The extension cannot inspect Handy's recording state.
-- **The updated extension is not visible:** redeploy the package and run **Reload Command Palette Extension**.
+- **Windows says the publisher is unknown or the package is untrusted:** install the release's `.cer` into **Current User > Trusted People**, then try the MSIX again.
+- **The updated extension is not visible:** install the updated MSIX and run **Reload Command Palette Extension**.
 
 ## Privacy and security
 

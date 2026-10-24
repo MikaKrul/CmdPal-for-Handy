@@ -1,0 +1,90 @@
+name: Release MSIX
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Four-part MSIX version (for example 1.0.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate version and signing secrets
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+          SIGNING_PFX_BASE64: ${{ secrets.HANDYEXTENSION_SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.HANDYEXTENSION_SIGNING_PFX_PASSWORD }}
+        run: |
+          if ($env:PACKAGE_VERSION -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Version must have four numeric parts, for example 1.0.0.0.' }
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:SIGNING_PFX_PASSWORD)) { throw 'Signing secrets are not configured.' }
+          $tag = 'v' + (($env:PACKAGE_VERSION -split '\.')[0..2] -join '.')
+          "PACKAGE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Restore
+        run: dotnet restore HandyExtension.sln
+
+      - name: Run tests
+        run: dotnet test HandyExtension.Tests/HandyExtension.Tests.csproj --configuration Release --no-restore -p:Platform=x64
+
+      - name: Prepare signing certificate
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.HANDYEXTENSION_SIGNING_PFX_BASE64 }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'HandyExtension-signing.pfx'
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+          "SIGNING_PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Import-Certificate -FilePath 'HandyExtension/Assets/HandyExtension.cer' -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+          Import-Certificate -FilePath 'HandyExtension/Assets/HandyExtension.cer' -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+
+      - name: Build and sign MSIX
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.HANDYEXTENSION_SIGNING_PFX_PASSWORD }}
+        run: |
+          $manifestPath = 'HandyExtension/Package.appxmanifest'
+          [xml]$manifest = Get-Content -Raw $manifestPath
+          $manifest.Package.Identity.Version = $env:PACKAGE_VERSION
+          $manifest.Save((Resolve-Path $manifestPath))
+          $packageDir = Join-Path $env:GITHUB_WORKSPACE 'release-output'
+          New-Item -ItemType Directory -Path $packageDir | Out-Null
+          dotnet build HandyExtension/HandyExtension.csproj --configuration Release --no-restore -p:Platform=x64 -p:GenerateAppxPackageOnBuild=true -p:AppxPackageDir="$packageDir\" -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxBundle=Never -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="$env:SIGNING_PFX_PATH" -p:PackageCertificatePassword="$env:SIGNING_PFX_PASSWORD"
+          if ($LASTEXITCODE -ne 0) { throw 'MSIX build failed.' }
+          $msix = Get-ChildItem -Path $packageDir -Filter '*.msix' -File -Recurse | Select-Object -First 1
+          if (-not $msix) { throw 'The build completed but did not produce an MSIX.' }
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -File -Recurse | Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe was not found on the Windows runner.' }
+          & $signtool.FullName verify /pa /v $msix.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'MSIX signature verification failed.' }
+          Copy-Item $msix.FullName (Join-Path $packageDir 'HandyExtension.msix') -Force
+          Copy-Item 'HandyExtension/Assets/HandyExtension.cer' $packageDir
+          $hash = (Get-FileHash (Join-Path $packageDir 'HandyExtension.msix') -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  HandyExtension.msix" | Set-Content (Join-Path $packageDir 'SHA256SUMS.txt') -Encoding ascii
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:PACKAGE_TAG" release-output/HandyExtension.msix release-output/HandyExtension.cer release-output/SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "HandyExtension $env:PACKAGE_TAG" --notes "Install the included HandyExtension.cer into Current User > Trusted People before installing HandyExtension.msix. The certificate is self-signed and is trusted only after you install it. See the README installation instructions."
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
+
+      - name: Remove signing key
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:SIGNING_PFX_PATH -and (Test-Path $env:SIGNING_PFX_PATH)) { Remove-Item -LiteralPath $env:SIGNING_PFX_PATH -Force }
