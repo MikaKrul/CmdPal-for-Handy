@@ -74,11 +74,15 @@ jobs:
           if (-not $msix) { throw 'The build completed but did not produce an MSIX.' }
           $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -File -Recurse | Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $signtool) { throw 'signtool.exe was not found on the Windows runner.' }
-          $verification = & $signtool.FullName verify /pa /v $msix.FullName 2>&1
-          $verificationExitCode = $LASTEXITCODE
-          $verificationText = $verification -join "`n"
+          $verificationOut = Join-Path $env:RUNNER_TEMP 'signtool-verify.stdout.txt'
+          $verificationErr = Join-Path $env:RUNNER_TEMP 'signtool-verify.stderr.txt'
+          $verificationProcess = Start-Process -FilePath $signtool.FullName -ArgumentList @('verify', '/pa', '/v', $msix.FullName) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $verificationOut -RedirectStandardError $verificationErr
+          $verificationExitCode = $verificationProcess.ExitCode
+          $verificationText = (Get-Content $verificationOut -Raw) + "`n" + (Get-Content $verificationErr -Raw)
           $verificationText
-          $expectedSelfSignedTrustMessage = $verificationText -match 'Hash of file' -and $verificationText -match 'Issued to: HandyExtension MikaKrul' -and $verificationText -match 'not trusted by'
+          $verificationNormalized = $verificationText -replace '\s+', ' '
+          if ($verificationNormalized -notmatch 'Hash of file' -or $verificationNormalized -notmatch 'Issued to: HandyExtension MikaKrul') { throw 'SignTool did not report the expected package signature.' }
+          $expectedSelfSignedTrustMessage = $verificationNormalized -match 'Hash of file' -and $verificationNormalized -match 'Issued to: HandyExtension MikaKrul' -and $verificationNormalized -match 'not trusted by'
           if ($verificationExitCode -ne 0 -and -not $expectedSelfSignedTrustMessage) { throw 'MSIX signature verification failed.' }
           Copy-Item $msix.FullName (Join-Path $packageDir 'HandyExtension.msix') -Force
           Copy-Item 'HandyExtension/Assets/HandyExtension.cer' $packageDir
