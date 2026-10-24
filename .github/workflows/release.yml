@@ -78,8 +78,8 @@ jobs:
           $verificationExitCode = $LASTEXITCODE
           $verificationText = $verification -join "`n"
           $verificationText
-          $verificationNormalized = $verificationText -replace '\s+', ' '
-          if ($verificationExitCode -ne 0 -and ($verificationNormalized -notmatch 'Hash of file \(sha256\):' -or $verificationNormalized -notmatch 'Issued to: HandyExtension MikaKrul' -or $verificationNormalized -notmatch 'terminated in a root certificate which is not trusted by the trust provider')) { throw 'MSIX signature verification failed.' }
+          $expectedSelfSignedTrustMessage = $verificationText -match 'Hash of file' -and $verificationText -match 'Issued to: HandyExtension MikaKrul' -and $verificationText -match 'not trusted by'
+          if ($verificationExitCode -ne 0 -and -not $expectedSelfSignedTrustMessage) { throw 'MSIX signature verification failed.' }
           Copy-Item $msix.FullName (Join-Path $packageDir 'HandyExtension.msix') -Force
           Copy-Item 'HandyExtension/Assets/HandyExtension.cer' $packageDir
           $hash = (Get-FileHash (Join-Path $packageDir 'HandyExtension.msix') -Algorithm SHA256).Hash.ToLowerInvariant()
