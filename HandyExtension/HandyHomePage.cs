@@ -27,6 +27,18 @@ internal sealed partial class HandyHomePage : ListPage
             Subtitle = "Browse history and copy transcription text",
             Icon = new IconInfo("\uE81C"),
         },
+        new ListItem(new CopyLastTranscriptCommand(_data))
+        {
+            Title = "Copy Last Transcript",
+            Subtitle = "Copy the newest Handy transcript to the clipboard",
+            Icon = new IconInfo("\uE8C8"),
+        },
+        new ListItem(new HandyMicrophonesPage(_data))
+        {
+            Title = "Select Microphone",
+            Subtitle = "Switch Handy's input device (quit Handy first to save)",
+            Icon = new IconInfo("\uE8D6"),
+        },
         new ListItem(new HandyTranscriptionModelsPage(_data))
         {
             Title = "Select Model",
@@ -48,7 +60,7 @@ internal sealed partial class HandyHomePage : ListPage
         new ListItem(new HandyMorePage(_data, _configuredPath))
         {
             Title = "More",
-            Subtitle = "Recording actions, microphone, language, post-processing and folders",
+            Subtitle = "Recording actions, language, post-processing and folders",
             Icon = new IconInfo("\uE712"),
         },
     ];
@@ -89,23 +101,11 @@ internal sealed partial class HandyMorePage : ListPage
             Subtitle = "Stop the current Handy operation",
             Icon = new IconInfo("\uE711"),
         },
-        new ListItem(new CopyLastTranscriptCommand(_data))
-        {
-            Title = "Copy Last Transcript",
-            Subtitle = "Copy the newest Handy transcript to the clipboard",
-            Icon = new IconInfo("\uE8C8"),
-        },
         new ListItem(new PasteLastTranscriptCommand(_data))
         {
             Title = "Paste Last Transcript",
             Subtitle = "Paste the newest transcript into the active app",
             Icon = new IconInfo("\uE77F"),
-        },
-        new ListItem(new HandyMicrophonesPage(_data))
-        {
-            Title = "Select Microphone",
-            Subtitle = "Switch Handy's input device (quit Handy first to save)",
-            Icon = new IconInfo("\uE8D6"),
         },
         new ListItem(new HandyTranscriptionLanguagesPage(_data))
         {
