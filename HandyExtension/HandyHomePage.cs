@@ -51,6 +51,18 @@ internal sealed partial class HandyHomePage : ListPage
             Subtitle = "Add or remove words used by Handy",
             Icon = new IconInfo("\uE8D2"),
         },
+        new ListItem(new HandyPostProcessingPage(_data))
+        {
+            Title = "Post-processing",
+            Subtitle = "Choose providers, edit models, fallback and prompts",
+            Icon = new IconInfo("\uE8D2"),
+        },
+        new ListItem(new CopyLastTranscriptCommand(_data))
+        {
+            Title = "Copy last transcript",
+            Subtitle = "Copy the newest Handy transcript to the clipboard",
+            Icon = new IconInfo("\uE8C8"),
+        },
         new ListItem(new HandyCommand("Open Handy", null, _configuredPath))
         {
             Title = "Open Handy",

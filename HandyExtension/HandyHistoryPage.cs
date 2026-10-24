@@ -52,6 +52,11 @@ internal sealed partial class HandyHistoryPage : ListPage
                         Title = "Play recording",
                         Subtitle = "Open the saved audio in your default player",
                     },
+                    new CommandContextItem(new CopyTextCommand(entry.TextToCopy))
+                    {
+                        Title = "Copy transcript",
+                        Subtitle = "Copy this transcript to the clipboard",
+                    },
                 ],
             }).ToList();
 
@@ -140,6 +145,11 @@ internal sealed partial class HandyHistoryDetailPage : ContentPage
         Icon = new IconInfo("\uE8A5");
         Commands =
         [
+            new CommandContextItem(new CopyTextCommand(entry.TextToCopy))
+            {
+                Title = "Copy transcript",
+                Subtitle = "Copy this transcript to the clipboard",
+            },
             new CommandContextItem(new PlayHistoryRecordingCommand(data, entry))
             {
                 Title = "Play recording",
@@ -151,12 +161,40 @@ internal sealed partial class HandyHistoryDetailPage : ContentPage
     public override IContent[] GetContent()
     {
         var timestamp = DateTimeOffset.FromUnixTimeSeconds(_entry.Timestamp).ToLocalTime().ToString("f", CultureInfo.CurrentCulture);
-        var transcript = string.IsNullOrWhiteSpace(_entry.TranscriptionText)
+        var transcript = string.IsNullOrWhiteSpace(_entry.TextToCopy)
             ? "No transcription text was saved for this recording."
-            : _entry.TranscriptionText;
+            : _entry.TextToCopy;
         return
         [
             new MarkdownContent($"**{timestamp}**\n\n{transcript}"),
         ];
+    }
+}
+
+internal sealed partial class CopyLastTranscriptCommand : InvokableCommand
+{
+    private readonly HandyLocalData _data;
+
+    public CopyLastTranscriptCommand(HandyLocalData data)
+    {
+        _data = data;
+        Name = "Copy last transcript";
+        Icon = new IconInfo("\uE8C8");
+    }
+
+    public override CommandResult Invoke()
+    {
+        try
+        {
+            var entries = _data.ReadHistory(null, out _);
+            var transcript = entries.FirstOrDefault()?.TextToCopy;
+            return string.IsNullOrWhiteSpace(transcript)
+                ? CommandResult.ShowToast("Handy has no transcript to copy yet.")
+                : new CopyTextCommand(transcript).Invoke();
+        }
+        catch
+        {
+            return CommandResult.ShowToast("Handy's history is unavailable. Open Handy once and try again.");
+        }
     }
 }

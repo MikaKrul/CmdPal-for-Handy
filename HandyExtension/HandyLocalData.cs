@@ -16,7 +16,28 @@ internal sealed record HandyHistoryEntry(
     long Timestamp,
     bool Saved,
     string Title,
-    string TranscriptionText);
+    string TranscriptionText,
+    string? PostProcessedText)
+{
+    public string TextToCopy => string.IsNullOrWhiteSpace(PostProcessedText) ? TranscriptionText : PostProcessedText;
+}
+
+internal sealed record HandyPostProcessingProvider(
+    string Id,
+    string Label,
+    string BaseUrl,
+    string ApiFormat,
+    string Model,
+    string FallbackModel,
+    bool IsActive);
+
+internal sealed record HandyPostProcessingPrompt(string Id, string Name, string Prompt, bool IsSelected);
+
+internal sealed record HandyPostProcessingSettings(
+    bool Enabled,
+    bool FallbackEnabled,
+    IReadOnlyList<HandyPostProcessingProvider> Providers,
+    IReadOnlyList<HandyPostProcessingPrompt> Prompts);
 
 internal sealed class HandyLocalData
 {
@@ -69,9 +90,21 @@ internal sealed class HandyLocalData
         connection.Open();
 
         using var command = connection.CreateCommand();
+        var hasPostProcessedText = false;
+        using (var schemaCommand = connection.CreateCommand())
+        {
+            schemaCommand.CommandText = "PRAGMA table_info(transcription_history)";
+            using var schemaReader = schemaCommand.ExecuteReader();
+            while (schemaReader.Read())
+            {
+                hasPostProcessedText |= string.Equals(schemaReader.GetString(1), "post_processed_text", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        var postProcessedColumn = hasPostProcessedText ? "post_processed_text" : "NULL";
         command.CommandText = beforeId.HasValue
-            ? "SELECT id, file_name, timestamp, saved, title, transcription_text FROM transcription_history WHERE id < $beforeId ORDER BY id DESC LIMIT $limit"
-            : "SELECT id, file_name, timestamp, saved, title, transcription_text FROM transcription_history ORDER BY id DESC LIMIT $limit";
+            ? $"SELECT id, file_name, timestamp, saved, title, transcription_text, {postProcessedColumn} FROM transcription_history WHERE id < $beforeId ORDER BY id DESC LIMIT $limit"
+            : $"SELECT id, file_name, timestamp, saved, title, transcription_text, {postProcessedColumn} FROM transcription_history ORDER BY id DESC LIMIT $limit";
         command.Parameters.AddWithValue("$limit", HistoryPageSize + 1);
         if (beforeId.HasValue)
         {
@@ -88,7 +121,8 @@ internal sealed class HandyLocalData
                 reader.GetInt64(2),
                 reader.GetBoolean(3),
                 reader.GetString(4),
-                reader.GetString(5)));
+                reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
         }
 
         hasMore = entries.Count > HistoryPageSize;
@@ -141,6 +175,111 @@ internal sealed class HandyLocalData
         });
     }
 
+    public HandyPostProcessingSettings ReadPostProcessingSettings()
+    {
+        var settings = ReadSettingsObject();
+        var providerId = settings["post_process_provider_id"]?.GetValue<string>() ?? "openai";
+        var models = settings["post_process_models"] as JsonObject ?? new JsonObject();
+        var fallbackModels = settings["post_process_fallback_models"] as JsonObject ?? new JsonObject();
+        var providers = (settings["post_process_providers"] as JsonArray ?? new JsonArray())
+            .OfType<JsonObject>()
+            .Select(provider =>
+            {
+                var id = provider["id"]?.GetValue<string>() ?? string.Empty;
+                return new HandyPostProcessingProvider(
+                    id,
+                    provider["label"]?.GetValue<string>() ?? id,
+                    provider["base_url"]?.GetValue<string>() ?? string.Empty,
+                    provider["api_format"]?.GetValue<string>() ?? "openai",
+                    models[id]?.GetValue<string>() ?? string.Empty,
+                    fallbackModels[id]?.GetValue<string>() ?? string.Empty,
+                    string.Equals(id, providerId, StringComparison.Ordinal));
+            })
+            .Where(provider => provider.Id.Length > 0)
+            .ToArray();
+        var selectedPromptId = settings["post_process_selected_prompt_id"]?.GetValue<string>();
+        var prompts = (settings["post_process_prompts"] as JsonArray ?? new JsonArray())
+            .OfType<JsonObject>()
+            .Select(prompt => new HandyPostProcessingPrompt(
+                prompt["id"]?.GetValue<string>() ?? string.Empty,
+                prompt["name"]?.GetValue<string>() ?? string.Empty,
+                prompt["prompt"]?.GetValue<string>() ?? string.Empty,
+                string.Equals(prompt["id"]?.GetValue<string>(), selectedPromptId, StringComparison.Ordinal)))
+            .Where(prompt => prompt.Id.Length > 0)
+            .ToArray();
+
+        return new HandyPostProcessingSettings(
+            settings["post_process_enabled"]?.GetValue<bool>() ?? false,
+            settings["post_process_fallback_enabled"]?.GetValue<bool>() ?? false,
+            providers,
+            prompts);
+    }
+
+    public void SetActivePostProcessingProvider(string providerId) => UpdateSettings(settings =>
+    {
+        EnsureProviderExists(settings, providerId);
+        settings["post_process_provider_id"] = providerId;
+    });
+
+    public void SetPostProcessingEnabled(bool enabled) => UpdateSettings(settings => settings["post_process_enabled"] = enabled);
+
+    public void SetFallbackEnabled(bool enabled) => UpdateSettings(settings => settings["post_process_fallback_enabled"] = enabled);
+
+    public void UpdatePostProcessingProvider(string providerId, string model, string fallbackModel, string baseUrl, string apiFormat) => UpdateSettings(settings =>
+    {
+        var provider = EnsureProviderExists(settings, providerId);
+        EnsureProviderModelMap(settings, "post_process_models")[providerId] = model;
+        EnsureProviderModelMap(settings, "post_process_fallback_models")[providerId] = fallbackModel;
+        if (string.Equals(providerId, "custom", StringComparison.Ordinal))
+        {
+            provider["base_url"] = baseUrl.Trim();
+            provider["api_format"] = apiFormat;
+        }
+    });
+
+    public void SavePostProcessingPrompt(string? id, string name, string prompt)
+    {
+        UpdateSettings(settings =>
+        {
+            var prompts = settings["post_process_prompts"] as JsonArray;
+            if (prompts is null)
+            {
+                prompts = new JsonArray();
+                settings["post_process_prompts"] = prompts;
+            }
+            var promptId = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("D") : id;
+            var existing = prompts.OfType<JsonObject>().FirstOrDefault(item => string.Equals(item["id"]?.GetValue<string>(), promptId, StringComparison.Ordinal));
+            if (existing is null)
+            {
+                prompts.Add(new JsonObject { ["id"] = promptId, ["name"] = name.Trim(), ["prompt"] = prompt.Trim() });
+            }
+            else
+            {
+                existing["name"] = name.Trim();
+                existing["prompt"] = prompt.Trim();
+            }
+        });
+    }
+
+    public void SelectPostProcessingPrompt(string? id) => UpdateSettings(settings => settings["post_process_selected_prompt_id"] = id);
+
+    public void RemovePostProcessingPrompt(string id) => UpdateSettings(settings =>
+    {
+        if (settings["post_process_prompts"] is JsonArray prompts)
+        {
+            var existing = prompts.OfType<JsonObject>().FirstOrDefault(item => string.Equals(item["id"]?.GetValue<string>(), id, StringComparison.Ordinal));
+            if (existing is not null)
+            {
+                prompts.Remove(existing);
+            }
+        }
+
+        if (string.Equals(settings["post_process_selected_prompt_id"]?.GetValue<string>(), id, StringComparison.Ordinal))
+        {
+            settings["post_process_selected_prompt_id"] = null;
+        }
+    });
+
     public static string NormalizeCustomWord(string word) =>
         string.Join(' ', word.Replace("<", string.Empty, StringComparison.Ordinal)
             .Replace(">", string.Empty, StringComparison.Ordinal)
@@ -166,15 +305,46 @@ internal sealed class HandyLocalData
 
     private void UpdateCustomWords(Func<List<string>, List<string>> update)
     {
+        UpdateSettings(settings =>
+        {
+            var wordArray = settings["custom_words"] as JsonArray ?? new JsonArray();
+            var words = wordArray
+                .Select(node => node?.GetValue<string>())
+                .Where(word => !string.IsNullOrWhiteSpace(word))
+                .Select(word => word!)
+                .ToList();
+            var updatedWords = update(words);
+            settings["custom_words"] = new JsonArray(updatedWords
+                .Select(word => (JsonNode?)JsonValue.Create(word))
+                .ToArray());
+        });
+    }
+
+    private JsonObject ReadSettingsObject()
+    {
+        var storePath = GetSettingsStorePath();
+        if (!File.Exists(storePath))
+        {
+            throw new FileNotFoundException("Handy's settings were not found. Open Handy once before managing settings.");
+        }
+
+        var root = JsonNode.Parse(File.ReadAllBytes(storePath)) as JsonObject
+            ?? throw new InvalidDataException("Handy's settings file is not valid JSON.");
+        return root["settings"] as JsonObject
+            ?? throw new InvalidDataException("Handy's settings file does not contain the expected settings object.");
+    }
+
+    private void UpdateSettings(Action<JsonObject> update)
+    {
         if (IsHandyRunning())
         {
-            throw new InvalidOperationException("Quit Handy from its tray menu before changing custom words, then reopen Handy to apply the change.");
+            throw new InvalidOperationException("Quit Handy from its tray menu before changing settings, then reopen Handy to apply the change.");
         }
 
         var settingsPath = GetSettingsStorePath();
         if (!File.Exists(settingsPath))
         {
-            throw new FileNotFoundException("Handy's settings were not found. Open Handy once before managing custom words.");
+            throw new FileNotFoundException("Handy's settings were not found. Open Handy once before managing settings.");
         }
 
         var originalBytes = File.ReadAllBytes(settingsPath);
@@ -182,16 +352,7 @@ internal sealed class HandyLocalData
             ?? throw new InvalidDataException("Handy's settings file is not valid JSON.");
         var settings = root["settings"] as JsonObject
             ?? throw new InvalidDataException("Handy's settings file does not contain the expected settings object.");
-        var wordArray = settings["custom_words"] as JsonArray ?? new JsonArray();
-        var words = wordArray
-            .Select(node => node?.GetValue<string>())
-            .Where(word => !string.IsNullOrWhiteSpace(word))
-            .Select(word => word!)
-            .ToList();
-        var updatedWords = update(words);
-        settings["custom_words"] = new JsonArray(updatedWords
-            .Select(word => (JsonNode?)JsonValue.Create(word))
-            .ToArray());
+        update(settings);
 
         var directory = Path.GetDirectoryName(settingsPath)
             ?? throw new InvalidOperationException("Handy's settings folder could not be located.");
@@ -225,6 +386,26 @@ internal sealed class HandyLocalData
                 File.Delete(temporaryPath);
             }
         }
+    }
+
+    private static JsonObject EnsureProviderExists(JsonObject settings, string providerId)
+    {
+        var provider = (settings["post_process_providers"] as JsonArray ?? new JsonArray())
+            .OfType<JsonObject>()
+            .FirstOrDefault(item => string.Equals(item["id"]?.GetValue<string>(), providerId, StringComparison.Ordinal));
+        return provider ?? throw new InvalidOperationException("That post-processing provider is not configured in Handy.");
+    }
+
+    private static JsonObject EnsureProviderModelMap(JsonObject settings, string key)
+    {
+        if (settings[key] is JsonObject map)
+        {
+            return map;
+        }
+
+        var newMap = new JsonObject();
+        settings[key] = newMap;
+        return newMap;
     }
 
     private string GetSettingsStorePath() => Path.Combine(GetDataDirectory(), "settings_store.json");

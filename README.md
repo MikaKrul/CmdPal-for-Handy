@@ -8,9 +8,11 @@ Select **Handy** in PowerToys Command Palette to open the extension's home page.
 
 - Start or stop transcription, use AI post-processing, cancel an operation, or open Handy.
 - Browse Handy's local transcription history, open a transcript, and play its saved WAV recording in your default audio player. Use **Load older history** to browse more than 50 entries.
+- Copy the newest transcript, or use an individual history item's **More commands** menu to copy its transcript.
 - Add and remove Handy custom words.
+- Choose a post-processing provider; edit its model and fallback model; configure the custom endpoint and API format; toggle post-processing and fallback; and create, edit, select, or remove prompts.
 
-History is read directly from Handy's local SQLite database and audio files. Custom words are stored in Handy's local settings file. To avoid Handy overwriting an external settings change, fully quit Handy from its tray menu before adding or removing custom words; then reopen Handy to apply them. The extension does not change Handy's source code and does not send history, recordings, or custom words over the network.
+History is read directly from Handy's local SQLite database and audio files. Custom words are stored in Handy's local settings file. To avoid Handy overwriting an external settings change, fully quit Handy from its tray menu before adding or removing custom words; then reopen Handy to apply them. Post-processing provider, model, fallback, and prompt settings use the same local settings file and also require Handy to be fully closed before editing. The extension does not show or intentionally change API-key values. The extension does not change Handy's source code and does not send history, recordings, or custom words over the network.
 
 Handy's control flags are handled by its single-instance mechanism and are only sent when Handy is already running. If it is not running, the extension asks you to open it first; this avoids starting Handy without performing the requested control action. Handy describes its CLI as beta functionality. The `--start-hidden` flag is not exposed because launching it while Handy is already running raises the existing window instead of starting a hidden instance.
 
@@ -52,12 +54,13 @@ dotnet build HandyExtension.sln --configuration Release --no-restore -p:Platform
 1. Install and open Handy. Complete its first-run setup and confirm its microphone works.
 2. Install PowerToys, enable Command Palette, and install HandyExtension as described above.
 3. Open Command Palette (`Win`+`Alt`+`Space` by default), reload extensions, and select **Handy**.
-4. Confirm the Handy home page shows transcription controls, History, and Custom words. Open **History** and check that saved recordings appear; select one to open the WAV in your default player, and use its context menu to view the transcript.
+4. Confirm the Handy home page shows transcription controls, History, Custom words, Post-processing, and **Copy last transcript**. Copy the latest transcript, then open **History** and use an item's More commands menu to copy its transcript or open the WAV in your default player.
 5. Open **Custom words**. Fully quit Handy from the tray menu, add a temporary word, then reopen Handy and confirm it appears in Handy's custom words settings. Quit Handy again, remove the temporary word through Command Palette, and reopen Handy to confirm it is gone.
-6. With Handy running, select **Start or stop transcription**. Confirm Handy shows that recording started, select the command again, then dictate a short, non-sensitive phrase into a blank Notepad document and confirm it appears. Repeat with AI post-processing if configured, and use **Cancel transcription** to confirm it stops without inserting a transcript.
-7. If Handy is not found, set the full `Handy.exe` path in extension settings and retry.
+6. Fully quit Handy, open **Post-processing**, change the active provider or model, and save a prompt. Reopen Handy and verify the settings took effect. Quit Handy before making further extension-side settings edits.
+7. With Handy running, select **Start or stop transcription**. Confirm Handy shows that recording started, select the command again, then dictate a short, non-sensitive phrase into a blank Notepad document and confirm it appears. Repeat with AI post-processing if configured, and use **Cancel transcription** to confirm it stops without inserting a transcript.
+8. If Handy is not found, set the full `Handy.exe` path in extension settings and retry.
 
-The automated tests cover executable path selection and discovery; they do not record audio. The history and custom words features require a Windows end-to-end check against an installed Handy profile. GitHub Actions runs the automated tests and Windows x64 Release build for pushes and pull requests to `main` or `develop`. A separate manually started workflow builds, signs, verifies, and publishes the versioned MSIX GitHub Release.
+The automated tests cover executable path selection and discovery; they do not record audio. History, custom words, and post-processing settings require a Windows end-to-end check against an installed Handy profile. GitHub Actions runs the automated tests and Windows x64 Release build for pushes and pull requests to `main` or `develop`. A separate manually started workflow builds, signs, verifies, and publishes the versioned MSIX GitHub Release.
 
 ## Troubleshooting
 
@@ -68,7 +71,7 @@ The automated tests cover executable path selection and discovery; they do not r
 
 ## Privacy and security
 
-The extension launches Handy locally and passes only the selected CLI flag. It reads Handy history and recordings only from the local profile; audio playback is opened through the Windows default app. Custom word changes update Handy's local settings file only when Handy is closed. No history, recordings, or custom words are sent over the network. Process arguments use `ProcessStartInfo.ArgumentList`; no shell is invoked. Report security issues privately through GitHub's Security Advisories for this repository.
+The extension launches Handy locally and passes only the selected CLI flag. It reads Handy history and recordings only from the local profile; audio playback is opened through the Windows default app. Custom word changes update Handy's local settings file only when Handy is closed. No history, recordings, transcripts, custom words, or post-processing settings are sent over the network. The extension does not show or intentionally change API-key values. Process arguments use `ProcessStartInfo.ArgumentList`; no shell is invoked. Report security issues privately through GitHub's Security Advisories for this repository.
 
 ## Distribution status and limitations
 
