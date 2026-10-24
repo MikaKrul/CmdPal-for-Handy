@@ -7,9 +7,9 @@ using System.Text.Json.Nodes;
 namespace HandyExtension;
 
 /// <summary>
-/// Loads and saves each menu command's placement (home page, More page, or hidden)
-/// in a JSON file in %LOCALAPPDATA%\HandyExtension\menu.json. The file only drives
-/// the extension's own menu layout; it is not read by Handy.
+/// The placement of every menu command (home page, More page, top level of the palette,
+/// or hidden), saved in a JSON file in %LOCALAPPDATA%\HandyExtension\menu.json. The file
+/// only drives the extension's own menu layout; it is not read by Handy.
 /// This file has no Command Palette dependencies so the test project can compile it directly.
 /// </summary>
 internal static class HandyMenuConfig
@@ -18,6 +18,12 @@ internal static class HandyMenuConfig
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "HandyExtension",
         "menu.json");
+
+    /// <summary>
+    /// Raised after any placement was saved, so the command provider can refresh its
+    /// top-level commands. Pages refresh themselves through their own callbacks.
+    /// </summary>
+    public static event Action? PlacementChanged;
 
     public static Dictionary<string, HandyMenuPlacement> Load(string? storePath = null)
     {
@@ -70,6 +76,7 @@ internal static class HandyMenuConfig
         var placements = Load(storePath);
         placements[id] = placement;
         Save(placements, storePath);
+        PlacementChanged?.Invoke();
     }
 
     public static void ResetPlacement(string id, string? storePath = null)
@@ -78,6 +85,7 @@ internal static class HandyMenuConfig
         var placement = HandyMenuItems.Find(id)?.DefaultPlacement ?? HandyMenuPlacement.More;
         placements[id] = placement;
         Save(placements, storePath);
+        PlacementChanged?.Invoke();
     }
 
     public static void ResetAll(string? storePath = null)
@@ -91,6 +99,8 @@ internal static class HandyMenuConfig
         {
             // A missing or locked file needs no reset.
         }
+
+        PlacementChanged?.Invoke();
     }
 
     public static bool TryParsePlacement(string? value, out HandyMenuPlacement placement)
@@ -102,6 +112,9 @@ internal static class HandyMenuConfig
                 return true;
             case "more":
                 placement = HandyMenuPlacement.More;
+                return true;
+            case "top":
+                placement = HandyMenuPlacement.TopLevel;
                 return true;
             case "hidden":
                 placement = HandyMenuPlacement.Hidden;
@@ -116,6 +129,7 @@ internal static class HandyMenuConfig
     {
         HandyMenuPlacement.Home => "home",
         HandyMenuPlacement.More => "more",
+        HandyMenuPlacement.TopLevel => "top",
         _ => "hidden",
     };
 
@@ -123,6 +137,7 @@ internal static class HandyMenuConfig
     {
         HandyMenuPlacement.Home => "Home page",
         HandyMenuPlacement.More => "More page",
+        HandyMenuPlacement.TopLevel => "Top level",
         _ => "Hidden",
     };
 }

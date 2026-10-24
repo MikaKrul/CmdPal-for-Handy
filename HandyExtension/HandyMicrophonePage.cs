@@ -86,6 +86,13 @@ internal sealed partial class SelectHandyMicrophoneCommand : InvokableCommand
     {
         try
         {
+            // Validate against Windows' live device list here, so the data layer
+            // stays independent of Windows audio APIs.
+            if (_deviceName is not null && !WindowsAudioInputDevices.ListInputDevices().Any(device => string.Equals(device.Name, _deviceName, StringComparison.Ordinal)))
+            {
+                return CommandResult.ShowToast("Choose a microphone from Windows' input device list.");
+            }
+
             _data.SetSelectedMicrophone(_deviceName);
             return CommandResult.ShowToast("Saved. Reopen Handy to use the new setting.");
         }

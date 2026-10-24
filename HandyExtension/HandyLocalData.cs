@@ -47,16 +47,35 @@ internal sealed record HandyPostProcessingSettings(
     IReadOnlyList<HandyPostProcessingProvider> Providers,
     IReadOnlyList<HandyPostProcessingPrompt> Prompts);
 
+/// <summary>
+/// Reads and writes Handy's local data: the SQLite transcription history and the
+/// JSON settings store. Settings writes are transactional: they verify Handy is
+/// closed, verify the file did not change while the update was being prepared,
+/// and keep a backup of the previous version.
+/// This file has no WinRT dependencies so the test project can compile it directly.
+/// </summary>
 internal sealed class HandyLocalData
 {
     private const int HistoryPageSize = 50;
     private const string HandyIdentifier = "com.pais.handy";
     private const string PortableMarkerContents = "Handy Portable Mode";
     private readonly Func<string?> _configuredPath;
+    private readonly string? _dataDirectoryOverride;
 
     public HandyLocalData(Func<string?> configuredPath)
+        : this(configuredPath, dataDirectoryOverride: null)
+    {
+    }
+
+    /// <summary>
+    /// Test hook: a data directory override points every read and write at that
+    /// folder instead of Handy's discovered data directory, and disables the
+    /// Handy process checks, which only protect a real Handy-managed profile.
+    /// </summary>
+    internal HandyLocalData(Func<string?> configuredPath, string? dataDirectoryOverride)
     {
         _configuredPath = configuredPath;
+        _dataDirectoryOverride = dataDirectoryOverride;
     }
 
     public IReadOnlyList<string> ReadCustomWords()
@@ -76,7 +95,12 @@ internal sealed class HandyLocalData
             .ToArray() ?? Array.Empty<string>();
     }
 
-    public IReadOnlyList<HandyHistoryEntry> ReadHistory(long? beforeId, out bool hasMore)
+    /// <summary>
+    /// Reads a page of history entries, newest first. A search term matches anywhere
+    /// in the title, the raw transcription text, or the post-processed text - not
+    /// just the preview shown in the list - with LIKE wildcards taken literally.
+    /// </summary>
+    public IReadOnlyList<HandyHistoryEntry> ReadHistory(long? beforeId, out bool hasMore, string? search = null)
     {
         var historyPath = Path.Combine(GetDataDirectory(), "history.db");
         if (!File.Exists(historyPath))
@@ -110,13 +134,28 @@ internal sealed class HandyLocalData
         }
 
         var postProcessedColumn = hasPostProcessedText ? "post_processed_text" : "NULL";
-        command.CommandText = beforeId.HasValue
-            ? $"SELECT id, file_name, timestamp, saved, title, transcription_text, {postProcessedColumn} FROM transcription_history WHERE id < $beforeId ORDER BY id DESC LIMIT $limit"
-            : $"SELECT id, file_name, timestamp, saved, title, transcription_text, {postProcessedColumn} FROM transcription_history ORDER BY id DESC LIMIT $limit";
+        var conditions = new List<string>();
+        if (beforeId.HasValue)
+        {
+            conditions.Add("id < $beforeId");
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            conditions.Add($"(title LIKE $search ESCAPE '\\' OR transcription_text LIKE $search ESCAPE '\\' OR {postProcessedColumn} LIKE $search ESCAPE '\\')");
+        }
+
+        var whereClause = conditions.Count > 0 ? $" WHERE {string.Join(" AND ", conditions)}" : string.Empty;
+        command.CommandText = $"SELECT id, file_name, timestamp, saved, title, transcription_text, {postProcessedColumn} FROM transcription_history{whereClause} ORDER BY id DESC LIMIT $limit";
         command.Parameters.AddWithValue("$limit", HistoryPageSize + 1);
         if (beforeId.HasValue)
         {
             command.Parameters.AddWithValue("$beforeId", beforeId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            command.Parameters.AddWithValue("$search", $"%{EscapeLikeValue(search)}%");
         }
 
         var entries = new List<HandyHistoryEntry>(HistoryPageSize + 1);
@@ -125,11 +164,11 @@ internal sealed class HandyLocalData
         {
             entries.Add(new HandyHistoryEntry(
                 reader.GetInt64(0),
-                reader.GetString(1),
+                GetStringOrEmpty(reader, 1),
                 reader.GetInt64(2),
                 reader.GetBoolean(3),
-                reader.GetString(4),
-                reader.GetString(5),
+                GetStringOrEmpty(reader, 4),
+                GetStringOrEmpty(reader, 5),
                 reader.IsDBNull(6) ? null : reader.GetString(6)));
         }
 
@@ -141,6 +180,18 @@ internal sealed class HandyLocalData
 
         return entries;
     }
+
+    private static string GetStringOrEmpty(SqliteDataReader reader, int ordinal) =>
+        reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
+
+    /// <summary>
+    /// Escapes SQLite LIKE wildcards in the search term, so '%', '_', and '\'
+    /// only match themselves in queries that use the ESCAPE '\' clause.
+    /// </summary>
+    private static string EscapeLikeValue(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
 
     public string? FindRecording(HandyHistoryEntry entry)
     {
@@ -273,11 +324,6 @@ internal sealed class HandyLocalData
     public void SetSelectedMicrophone(string? deviceName)
     {
         EnsureHandyClosed();
-        if (deviceName is not null && !WindowsAudioInputDevices.ListInputDevices().Any(device => string.Equals(device.Name, deviceName, StringComparison.Ordinal)))
-        {
-            throw new InvalidOperationException("Choose a microphone from Windows' input device list.");
-        }
-
         UpdateSettings(settings => settings["selected_microphone"] = deviceName);
     }
 
@@ -426,7 +472,7 @@ internal sealed class HandyLocalData
             ?? throw new InvalidDataException("Handy's settings file does not contain the expected settings object.");
     }
 
-    private void UpdateSettings(Action<JsonObject> update)
+    internal void UpdateSettings(Action<JsonObject> update)
     {
         EnsureHandyClosed();
 
@@ -455,7 +501,7 @@ internal sealed class HandyLocalData
                 stream.Flush(flushToDisk: true);
             }
 
-            if (IsHandyRunning())
+            if (ShouldCheckHandyProcess && IsHandyRunning())
             {
                 throw new InvalidOperationException("Handy started while the change was being prepared. Quit Handy and try again.");
             }
@@ -466,7 +512,10 @@ internal sealed class HandyLocalData
                 throw new IOException("Handy's settings changed while the update was being prepared. Try again.");
             }
 
-            File.Replace(temporaryPath, settingsPath, null);
+            // File.Replace writes the new settings atomically and keeps the previous
+            // version in the backup file, so the last state can be restored by hand.
+            var backupPath = Path.Combine(directory, "settings_store.json.HandyExtension.bak");
+            File.Replace(temporaryPath, settingsPath, backupPath);
         }
         finally
         {
@@ -485,9 +534,15 @@ internal sealed class HandyLocalData
         return provider ?? throw new InvalidOperationException("That post-processing provider is not configured in Handy.");
     }
 
-    private static void EnsureHandyClosed()
+    /// <summary>
+    /// Whether the Handy process checks apply. They protect a real, Handy-managed
+    /// data directory; a test override directory is never managed by Handy.
+    /// </summary>
+    private bool ShouldCheckHandyProcess => _dataDirectoryOverride is null;
+
+    private void EnsureHandyClosed()
     {
-        if (IsHandyRunning())
+        if (ShouldCheckHandyProcess && IsHandyRunning())
         {
             throw new InvalidOperationException("Quit Handy from its tray menu before changing settings, then reopen Handy to apply the change.");
         }
@@ -517,6 +572,11 @@ internal sealed class HandyLocalData
 
     private string GetDataDirectory()
     {
+        if (_dataDirectoryOverride is not null)
+        {
+            return _dataDirectoryOverride;
+        }
+
         var executable = HandyExecutableLocator.Find(_configuredPath());
         if (executable is not null)
         {

@@ -6,9 +6,10 @@ namespace HandyExtension;
 
 internal enum HandyMenuPlacement
 {
-    Home,
-    More,
-    Hidden,
+    Home = 0,
+    More = 1,
+    TopLevel = 2,
+    Hidden = 3,
 }
 
 /// <summary>

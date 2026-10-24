@@ -8,13 +8,19 @@ using Microsoft.CommandPalette.Extensions.Toolkit;
 
 namespace HandyExtension;
 
-internal sealed partial class HandyHistoryPage : ListPage
+/// <summary>
+/// The Search Transcripts page. Unlike a plain ListPage, which the host filters on
+/// title and subtitle only, this dynamic page performs its own full-text search:
+/// the search term matches anywhere in the title, the raw transcription, or the
+/// post-processed text - not just the visible preview.
+/// </summary>
+internal sealed partial class HandyHistoryPage : DynamicListPage
 {
     private readonly HandyLocalData _data;
     private readonly Func<string?> _configuredPath;
     private readonly long? _beforeId;
 
-    public HandyHistoryPage(HandyLocalData data, Func<string?> configuredPath, long? beforeId = null)
+    public HandyHistoryPage(HandyLocalData data, Func<string?> configuredPath, long? beforeId = null, string? initialSearch = null)
     {
         _data = data;
         _configuredPath = configuredPath;
@@ -22,23 +28,33 @@ internal sealed partial class HandyHistoryPage : ListPage
         Name = "Search Transcripts";
         Title = "Handy transcript history";
         Icon = new IconInfo("\uE81C");
-        PlaceholderText = "Search your Handy history";
+        PlaceholderText = "Search your Handy history - full transcript text is searched";
+        if (!string.IsNullOrWhiteSpace(initialSearch))
+        {
+            SetSearchNoUpdate(initialSearch);
+        }
     }
+
+    public override void UpdateSearchText(string oldSearch, string newSearch) => RaiseItemsChanged();
 
     public override IListItem[] GetItems()
     {
         try
         {
-            var entries = _data.ReadHistory(_beforeId, out var hasMore);
+            var search = SearchText;
+            var hasSearch = !string.IsNullOrWhiteSpace(search);
+            var entries = _data.ReadHistory(_beforeId, out var hasMore, search);
             if (entries.Count == 0)
             {
-                return MessageSection("No saved recordings", "Handy's history database has no more entries.");
+                return hasSearch
+                    ? MessageSection("No matching transcripts", $"No saved transcript contains '{TrimForDisplay(search!)}'.")
+                    : MessageSection("No saved recordings", "Handy's history database has no more entries.");
             }
 
             var items = entries.Select(entry => new ListItem(new PlayHistoryRecordingCommand(_data, entry))
             {
                 Title = string.IsNullOrWhiteSpace(entry.Title) ? FormatTimestamp(entry.Timestamp) : entry.Title,
-                Subtitle = Preview(entry.TranscriptionText),
+                Subtitle = Preview(entry, search),
                 Icon = new IconInfo("\uE8A5"),
                 MoreCommands =
                 [
@@ -62,10 +78,10 @@ internal sealed partial class HandyHistoryPage : ListPage
 
             if (hasMore)
             {
-                items.Add(new ListItem(new HandyHistoryPage(_data, _configuredPath, entries[^1].Id))
+                items.Add(new ListItem(new HandyHistoryPage(_data, _configuredPath, entries[^1].Id, search))
                 {
                     Title = "Load older history",
-                    Subtitle = "Show the next page of saved recordings",
+                    Subtitle = hasSearch ? "Show older transcripts matching your search" : "Show the next page of saved recordings",
                     Icon = new IconInfo("\uE70D"),
                 });
             }
@@ -93,11 +109,44 @@ internal sealed partial class HandyHistoryPage : ListPage
         }
     }
 
-    private static string Preview(string text)
+    private static string TrimForDisplay(string value)
     {
+        var trimmed = value.Trim();
+        return trimmed.Length <= 40 ? trimmed : trimmed[..37] + "\u2026";
+    }
+
+    /// <summary>
+    /// Builds the one-line preview. With an active search it centers the window on
+    /// the first match (raw or post-processed text), so results are visible even
+    /// when the found word sits deep inside a long transcript.
+    /// </summary>
+    private static string Preview(HandyHistoryEntry entry, string? search)
+    {
+        var text = entry.TranscriptionText;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var index = IndexOf(text, search);
+            if (index < 0 && entry.PostProcessedText is { } processed && IndexOf(processed, search) >= 0)
+            {
+                text = processed;
+                index = IndexOf(processed, search);
+            }
+
+            if (index >= 0)
+            {
+                var windowStart = Math.Max(0, index - 40);
+                var windowEnd = Math.Min(text.Length, index + search.Length + 40);
+                return (windowStart > 0 ? "\u2026" : string.Empty)
+                    + text[windowStart..windowEnd]
+                    + (windowEnd < text.Length ? "\u2026" : string.Empty);
+            }
+        }
+
         var preview = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         return preview.Length <= 100 ? preview : preview[..97] + "\u2026";
     }
+
+    private static int IndexOf(string text, string value) => text.IndexOf(value, StringComparison.OrdinalIgnoreCase);
 }
 
 internal sealed partial class PlayHistoryRecordingCommand : InvokableCommand

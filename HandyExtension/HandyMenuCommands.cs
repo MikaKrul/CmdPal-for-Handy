@@ -15,6 +15,11 @@ internal static class HandyMenuContextItems
 {
     public static IContextItem[] MoveOrHide(HandyMenuItemDef definition, Action refresh) =>
     [
+        new CommandContextItem(new HandyPlacementCommand(definition, HandyMenuPlacement.TopLevel, refresh))
+        {
+            Title = "Pin to top level",
+            Subtitle = "Show this command at the top level of Command Palette",
+        },
         new CommandContextItem(new HandyPlacementCommand(definition, HandyMenuPlacement.More, refresh))
         {
             Title = "Move to More page",
@@ -29,6 +34,11 @@ internal static class HandyMenuContextItems
 
     public static IContextItem[] ShowOrHide(HandyMenuItemDef definition, Action refresh) =>
     [
+        new CommandContextItem(new HandyPlacementCommand(definition, HandyMenuPlacement.TopLevel, refresh))
+        {
+            Title = "Pin to top level",
+            Subtitle = "Show this command at the top level of Command Palette",
+        },
         new CommandContextItem(new HandyPlacementCommand(definition, HandyMenuPlacement.Home, refresh))
         {
             Title = "Show on home page",
@@ -66,6 +76,7 @@ internal sealed partial class HandyPlacementCommand : InvokableCommand
         {
             HandyMenuPlacement.Home => "Show on home page",
             HandyMenuPlacement.More => "Move to More page",
+            HandyMenuPlacement.TopLevel => "Pin to top level",
             _ => "Hide from menus",
         };
     }
@@ -87,7 +98,7 @@ internal sealed partial class HandyPlacementCommand : InvokableCommand
 }
 
 /// <summary>
-/// The submenu opened from Customize Menu. Lists the three placements for one command
+/// The submenu opened from Customize Menu. Lists the four placements for one command
 /// with the current choice marked, so picking a new placement is explicit instead of
 /// a hidden cycle.
 /// </summary>
@@ -115,9 +126,10 @@ internal sealed partial class HandyPlacementPage : ListPage
 
         return
         [
+            PlacementRow(HandyMenuPlacement.TopLevel, current, "Top level", "Show at the top level of Command Palette, without opening the Handy page first", "\uE718"),
             PlacementRow(HandyMenuPlacement.Home, current, "Home page", "Show on the extension's home page", "\uE80F"),
             PlacementRow(HandyMenuPlacement.More, current, "More page", "Show on the More page", "\uE712"),
-            PlacementRow(HandyMenuPlacement.Hidden, current, "Hidden", "Remove from both pages; restore it from Customize Menu", "\uE74D"),
+            PlacementRow(HandyMenuPlacement.Hidden, current, "Hidden", "Remove from all menus; restore it from Customize Menu", "\uE74D"),
         ];
     }
 
@@ -148,6 +160,7 @@ internal sealed partial class HandyPlacementChoiceCommand : InvokableCommand
         {
             HandyMenuPlacement.Home => "Home page",
             HandyMenuPlacement.More => "More page",
+            HandyMenuPlacement.TopLevel => "Top level",
             _ => "Hidden",
         };
     }
@@ -229,7 +242,7 @@ internal sealed partial class HandyCustomizeMenuPage : ListPage
         Name = "Customize Menu";
         Title = "Customize the Handy menu";
         Icon = new IconInfo("\uE713");
-        PlaceholderText = "Select a command to move it to the home page, More page, or hidden";
+        PlaceholderText = "Select a command to choose where it appears: top level, home page, More page, or hidden";
     }
 
     internal void RaiseMenuLayoutChanged() => RaiseItemsChanged();
