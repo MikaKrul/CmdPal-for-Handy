@@ -188,19 +188,27 @@ internal sealed class HandyLocalData
         }
 
         var result = false;
+        var tableExists = false;
         using (var schemaCommand = connection.CreateCommand())
         {
             schemaCommand.CommandText = "PRAGMA table_info(transcription_history)";
             using var schemaReader = schemaCommand.ExecuteReader();
             while (schemaReader.Read())
             {
+                tableExists = true;
                 result |= string.Equals(schemaReader.GetString(1), "post_processed_text", StringComparison.OrdinalIgnoreCase);
             }
         }
 
-        lock (HistorySchemaLock)
+        // A probe that returned no rows means the table does not exist yet. Do
+        // not cache that: once Handy creates the table, the probe must run again
+        // and see the real column set.
+        if (tableExists)
         {
-            HistorySchemaHasPostProcessedText[historyPath] = result;
+            lock (HistorySchemaLock)
+            {
+                HistorySchemaHasPostProcessedText[historyPath] = result;
+            }
         }
 
         return result;
@@ -450,7 +458,7 @@ internal sealed class HandyLocalData
             .Replace("'", string.Empty, StringComparison.Ordinal)
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    public static bool IsHandyRunning()
+    private static bool IsHandyRunning()
     {
         var processes = Process.GetProcessesByName("Handy");
         try
@@ -623,14 +631,16 @@ internal sealed class HandyLocalData
 
     // The marker probe reads the marker file on every history query; the layout
     // only changes when the user switches Handy's install style, so cache it.
-    private readonly object _portableInstallLock = new();
-    private readonly Dictionary<string, bool> _portableInstallCache = new(StringComparer.OrdinalIgnoreCase);
+    // The layout is a fact about the file system, not about this instance, so
+    // the cache is static like the other discovery caches.
+    private static readonly object PortableInstallLock = new();
+    private static readonly Dictionary<string, bool> PortableInstallCache = new(StringComparer.OrdinalIgnoreCase);
 
-    private bool IsPortableInstall(string executableDirectory)
+    private static bool IsPortableInstall(string executableDirectory)
     {
-        lock (_portableInstallLock)
+        lock (PortableInstallLock)
         {
-            if (_portableInstallCache.TryGetValue(executableDirectory, out var cached))
+            if (PortableInstallCache.TryGetValue(executableDirectory, out var cached))
             {
                 return cached;
             }
@@ -641,9 +651,9 @@ internal sealed class HandyLocalData
         var validMarker = File.Exists(markerPath) && File.ReadAllText(markerPath).Trim().StartsWith(PortableMarkerContents, StringComparison.Ordinal);
         var isPortable = validMarker || (File.Exists(markerPath) && Directory.Exists(portableDataPath));
 
-        lock (_portableInstallLock)
+        lock (PortableInstallLock)
         {
-            _portableInstallCache[executableDirectory] = isPortable;
+            PortableInstallCache[executableDirectory] = isPortable;
         }
 
         return isPortable;

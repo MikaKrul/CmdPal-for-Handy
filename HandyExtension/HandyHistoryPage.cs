@@ -46,9 +46,16 @@ internal sealed partial class HandyHistoryPage : DynamicListPage
             var entries = _data.ReadHistory(_beforeId, out var hasMore, search);
             if (entries.Count == 0)
             {
-                return hasSearch
-                    ? MessageSection("No matching transcripts", $"No saved transcript contains '{TrimForDisplay(search!)}'.")
-                    : MessageSection("No saved recordings", "Handy's history database has no more entries.");
+                if (hasSearch)
+                {
+                    return MessageSection(
+                        _beforeId is null ? "No matching transcripts" : "No older matching transcripts",
+                        $"No saved transcript contains '{TrimForDisplay(search!)}'.");
+                }
+
+                return _beforeId is null
+                    ? MessageSection("No saved recordings", "Handy's history database has no more entries.")
+                    : MessageSection("No older recordings", "Handy's history database has no older entries.");
             }
 
             var items = entries.Select(entry => new ListItem(new PlayHistoryRecordingCommand(_data, entry))

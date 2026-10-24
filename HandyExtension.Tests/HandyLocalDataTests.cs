@@ -217,6 +217,26 @@ public sealed class HandyLocalDataTests
     }
 
     [TestMethod]
+    public void ReadHistoryEmptyDatabaseThenCreatedTableSeesNewColumns()
+    {
+        var dataDirectory = DataDirectory;
+        var historyPath = Path.Combine(dataDirectory, "history.db");
+
+        // A zero-byte file is a valid empty SQLite database: the table does not
+        // exist yet, so the schema probe returns no rows and must not be cached.
+        File.WriteAllBytes(historyPath, []);
+        var data = CreateData(dataDirectory);
+        Assert.ThrowsExactly<SqliteException>(() => data.ReadHistory(null, out _));
+
+        WriteHistoryDatabase(dataDirectory, withPostProcessedColumn: true,
+            new HistoryRow(1, "a.wav", 1_700_000_001L, Saved: true, "a", "raw", "processed"));
+
+        var entries = data.ReadHistory(null, out _);
+        Assert.AreEqual(1, entries.Count);
+        Assert.AreEqual("processed", entries[0].PostProcessedText);
+    }
+
+    [TestMethod]
     public void ReadHistoryReadsNullCellsAsEmptyText()
     {
         var dataDirectory = DataDirectory;
