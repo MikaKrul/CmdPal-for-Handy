@@ -11,5 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\HandyExtension\HandyExecutableLocator.cs" Link="HandyExecutableLocator.cs" />
+    <Compile Include="..\HandyExtension\HandyMenuItems.cs" Link="HandyMenuItems.cs" />
+    <Compile Include="..\HandyExtension\HandyMenuConfig.cs" Link="HandyMenuConfig.cs" />
   </ItemGroup>
 </Project>
