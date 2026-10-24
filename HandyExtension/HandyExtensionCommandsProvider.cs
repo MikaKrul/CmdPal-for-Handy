@@ -27,19 +27,14 @@ public partial class HandyExtensionCommandsProvider : CommandProvider
 
         _commands =
         [
-            CreateCommand("Toggle Transcription", "--toggle-transcription"),
-            CreateCommand("Toggle Transcription with AI Post-processing", "--toggle-post-process"),
-            CreateCommand("Cancel Transcription", "--cancel"),
-            CreateCommand("Open Handy", null),
+            new CommandItem(new HandyHomePage(() => _settings.GetSetting<string>("handyExecutablePath")))
+            {
+                Title = "Handy",
+                Subtitle = "Transcription, history, and custom words",
+                Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png"),
+            },
         ];
     }
-
-    private CommandItem CreateCommand(string title, string? argument) =>
-        new(new HandyCommand(title, argument, () => _settings.GetSetting<string>("handyExecutablePath")))
-        {
-            Title = title,
-            Subtitle = argument is null ? "Launch Handy" : $"Handy {argument}",
-        };
 
     public override ICommandItem[] TopLevelCommands()
     {
