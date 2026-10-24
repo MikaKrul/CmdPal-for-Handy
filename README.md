@@ -1,6 +1,6 @@
 # HandyExtension
 
-A PowerToys Command Palette extension for [Handy](https://github.com/cjpais/Handy), the speech-to-text app. This is an independent community project and is not affiliated with the Handy maintainers.
+A PowerToys Command Palette extension for [Handy](https://github.com/cjpais/Handy), the speech-to-text app. This is an independent project and is not affiliated with the Handy maintainers in any way.
 
 ## What you can do
 
