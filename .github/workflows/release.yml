@@ -44,17 +44,25 @@ jobs:
         shell: pwsh
         env:
           SIGNING_PFX_BASE64: ${{ secrets.HANDYEXTENSION_SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.HANDYEXTENSION_SIGNING_PFX_PASSWORD }}
         run: |
           $pfxPath = Join-Path $env:RUNNER_TEMP 'HandyExtension-signing.pfx'
           [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
-          "SIGNING_PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $password = ConvertTo-SecureString $env:SIGNING_PFX_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation 'Cert:\CurrentUser\My' -Password $password -Exportable
+          if (-not $cert) { throw 'Could not import the signing certificate from the protected PFX.' }
+          $publicCert = Get-PfxCertificate -FilePath 'HandyExtension/Assets/HandyExtension.cer'
+          if ($cert.Thumbprint -ne $publicCert.Thumbprint) { throw 'The signing key does not match the published certificate.' }
           Import-Certificate -FilePath 'HandyExtension/Assets/HandyExtension.cer' -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+          certutil.exe -user -addstore -f Root 'HandyExtension/Assets/HandyExtension.cer'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not trust the package certificate for signature verification.' }
+          "SIGNING_CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Remove-Item -LiteralPath $pfxPath -Force
 
       - name: Build and sign MSIX
         shell: pwsh
         env:
           PACKAGE_VERSION: ${{ inputs.version }}
-          SIGNING_PFX_PASSWORD: ${{ secrets.HANDYEXTENSION_SIGNING_PFX_PASSWORD }}
         run: |
           $manifestPath = 'HandyExtension/Package.appxmanifest'
           [xml]$manifest = Get-Content -Raw $manifestPath
@@ -62,7 +70,7 @@ jobs:
           $manifest.Save((Resolve-Path $manifestPath))
           $packageDir = Join-Path $env:GITHUB_WORKSPACE 'release-output'
           New-Item -ItemType Directory -Path $packageDir | Out-Null
-          dotnet build HandyExtension/HandyExtension.csproj --configuration Release --no-restore -p:Platform=x64 -p:GenerateAppxPackageOnBuild=true -p:AppxPackageDir="$packageDir\" -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxBundle=Never -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="$env:SIGNING_PFX_PATH" -p:PackageCertificatePassword="$env:SIGNING_PFX_PASSWORD"
+          dotnet build HandyExtension/HandyExtension.csproj --configuration Release --no-restore -p:Platform=x64 -p:GenerateAppxPackageOnBuild=true -p:AppxPackageDir="$packageDir\" -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxBundle=Never -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile= -p:PackageCertificatePassword= -p:PackageCertificateThumbprint=$env:SIGNING_CERT_THUMBPRINT
           if ($LASTEXITCODE -ne 0) { throw 'MSIX build failed.' }
           $msix = Get-ChildItem -Path $packageDir -Filter '*.msix' -File -Recurse | Select-Object -First 1
           if (-not $msix) { throw 'The build completed but did not produce an MSIX.' }
@@ -87,4 +95,7 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          if ($env:SIGNING_PFX_PATH -and (Test-Path $env:SIGNING_PFX_PATH)) { Remove-Item -LiteralPath $env:SIGNING_PFX_PATH -Force }
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'HandyExtension-signing.pfx'
+          if (Test-Path $pfxPath) { Remove-Item -LiteralPath $pfxPath -Force }
+          if ($env:SIGNING_CERT_THUMBPRINT) { Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $env:SIGNING_CERT_THUMBPRINT) -ErrorAction SilentlyContinue }
+          if ($env:SIGNING_CERT_THUMBPRINT) { certutil.exe -user -delstore -f Root $env:SIGNING_CERT_THUMBPRINT | Out-Null }
