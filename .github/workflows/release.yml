@@ -14,6 +14,7 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -48,7 +49,6 @@ jobs:
           [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
           "SIGNING_PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Import-Certificate -FilePath 'HandyExtension/Assets/HandyExtension.cer' -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
-          Import-Certificate -FilePath 'HandyExtension/Assets/HandyExtension.cer' -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
 
       - name: Build and sign MSIX
         shell: pwsh
