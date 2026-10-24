@@ -33,6 +33,14 @@ internal sealed record HandyPostProcessingProvider(
 
 internal sealed record HandyPostProcessingPrompt(string Id, string Name, string Prompt, bool IsSelected);
 
+internal sealed record HandyTranscriptionModel(
+    string Id,
+    string Name,
+    bool IsDownloaded,
+    bool SupportsLanguageDetection,
+    IReadOnlyList<string> SupportedLanguages,
+    bool IsSelected);
+
 internal sealed record HandyPostProcessingSettings(
     bool Enabled,
     bool FallbackEnabled,
@@ -215,6 +223,77 @@ internal sealed class HandyLocalData
             prompts);
     }
 
+    public IReadOnlyList<HandyTranscriptionModel> ReadAvailableTranscriptionModels()
+    {
+        var executable = HandyExecutableLocator.Find(_configuredPath())
+            ?? throw new FileNotFoundException("Handy was not found. Set its executable path in extension settings.");
+        var startInfo = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add("--list-models");
+        startInfo.ArgumentList.Add("--json");
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Handy's model list could not be started.");
+        var output = process.StandardOutput.ReadToEndAsync();
+        if (!process.WaitForExit(20000))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new TimeoutException("Handy's model list took too long to respond.");
+        }
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Handy could not return its available models.");
+        }
+
+        var selectedModel = ReadSettingsObject()["selected_model"]?.GetValue<string>();
+        using var document = JsonDocument.Parse(output.GetAwaiter().GetResult());
+        return document.RootElement.EnumerateArray()
+            .Select(model => new HandyTranscriptionModel(
+                GetJsonString(model, "id"),
+                GetJsonString(model, "name"),
+                GetJsonBoolean(model, "is_downloaded"),
+                GetJsonBoolean(model, "supports_language_detection"),
+                model.TryGetProperty("supported_languages", out var languages) && languages.ValueKind == JsonValueKind.Array
+                    ? languages.EnumerateArray().Where(language => language.ValueKind == JsonValueKind.String).Select(language => language.GetString()!).ToArray()
+                    : Array.Empty<string>(),
+                string.Equals(GetJsonString(model, "id"), selectedModel, StringComparison.Ordinal)))
+            .Where(model => model.IsDownloaded)
+            .ToArray();
+    }
+
+    public string ReadSelectedLanguage() => ReadSettingsObject()["selected_language"]?.GetValue<string>() ?? "auto";
+
+    public void SetSelectedModel(string modelId)
+    {
+        EnsureHandyClosed();
+        if (!ReadAvailableTranscriptionModels().Any(model => string.Equals(model.Id, modelId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Choose a downloaded model from Handy's model list.");
+        }
+
+        UpdateSettings(settings => settings["selected_model"] = modelId);
+    }
+
+    public void SetSelectedLanguage(string language)
+    {
+        EnsureHandyClosed();
+        var selectedModel = ReadAvailableTranscriptionModels().FirstOrDefault(model => model.IsSelected)
+            ?? throw new InvalidOperationException("Select a downloaded transcription model before choosing a language.");
+        if (language == "auto" ? !selectedModel.SupportsLanguageDetection : !selectedModel.SupportedLanguages.Contains(language, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException("That language is not supported by the selected Handy model.");
+        }
+
+        UpdateSettings(settings => settings["selected_language"] = language);
+    }
+
+    public string GetRecordingsDirectory() => Path.Combine(GetDataDirectory(), "recordings");
+
     public void SetActivePostProcessingProvider(string providerId) => UpdateSettings(settings =>
     {
         EnsureProviderExists(settings, providerId);
@@ -336,10 +415,7 @@ internal sealed class HandyLocalData
 
     private void UpdateSettings(Action<JsonObject> update)
     {
-        if (IsHandyRunning())
-        {
-            throw new InvalidOperationException("Quit Handy from its tray menu before changing settings, then reopen Handy to apply the change.");
-        }
+        EnsureHandyClosed();
 
         var settingsPath = GetSettingsStorePath();
         if (!File.Exists(settingsPath))
@@ -396,6 +472,14 @@ internal sealed class HandyLocalData
         return provider ?? throw new InvalidOperationException("That post-processing provider is not configured in Handy.");
     }
 
+    private static void EnsureHandyClosed()
+    {
+        if (IsHandyRunning())
+        {
+            throw new InvalidOperationException("Quit Handy from its tray menu before changing settings, then reopen Handy to apply the change.");
+        }
+    }
+
     private static JsonObject EnsureProviderModelMap(JsonObject settings, string key)
     {
         if (settings[key] is JsonObject map)
@@ -407,6 +491,14 @@ internal sealed class HandyLocalData
         settings[key] = newMap;
         return newMap;
     }
+
+    private static string GetJsonString(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static bool GetJsonBoolean(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.True;
 
     private string GetSettingsStorePath() => Path.Combine(GetDataDirectory(), "settings_store.json");
 

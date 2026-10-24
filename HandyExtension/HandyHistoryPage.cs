@@ -19,8 +19,8 @@ internal sealed partial class HandyHistoryPage : ListPage
         _data = data;
         _configuredPath = configuredPath;
         _beforeId = beforeId;
-        Name = "History";
-        Title = "Handy history";
+        Name = "Search Transcripts";
+        Title = "Handy transcript history";
         Icon = new IconInfo("\uE81C");
         PlaceholderText = "Search your Handy history";
     }
