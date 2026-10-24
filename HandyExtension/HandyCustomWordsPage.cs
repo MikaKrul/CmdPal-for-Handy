@@ -20,7 +20,7 @@ internal sealed partial class HandyCustomWordsPage : ListPage
         PlaceholderText = "Search your custom words";
     }
 
-    public override ISection[] GetItems()
+    public override IListItem[] GetItems()
     {
         try
         {
@@ -52,23 +52,16 @@ internal sealed partial class HandyCustomWordsPage : ListPage
                 });
             }
 
-            return [new ListSection { Title = "Custom words", Items = items.ToArray() }];
+            return items.ToArray();
         }
         catch
         {
             return
             [
-                new ListSection
+                new ListItem(new NoOpCommand())
                 {
-                    Title = "Custom words",
-                    Items =
-                    [
-                        new ListItem(new NoOpCommand())
-                        {
-                            Title = "Handy's settings are unavailable",
-                            Subtitle = "Open Handy once, then return here.",
-                        },
-                    ],
+                    Title = "Handy's settings are unavailable",
+                    Subtitle = "Open Handy once, then return here.",
                 },
             ];
         }

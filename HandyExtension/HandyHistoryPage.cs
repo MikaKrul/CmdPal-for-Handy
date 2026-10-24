@@ -24,14 +24,14 @@ internal sealed partial class HandyHistoryPage : ListPage
         PlaceholderText = "Search your Handy history";
     }
 
-    public override ISection[] GetItems()
+    public override IListItem[] GetItems()
     {
         try
         {
             var entries = _data.ReadHistory(_beforeId, out var hasMore);
             if (entries.Count == 0)
             {
-                return [MessageSection("No saved recordings", "Handy's history database has no more entries.")];
+                return MessageSection("No saved recordings", "Handy's history database has no more entries.");
             }
 
             var items = entries.Select(entry => new ListItem(new PlayHistoryRecordingCommand(_data, entry))
@@ -64,20 +64,16 @@ internal sealed partial class HandyHistoryPage : ListPage
                 });
             }
 
-            return [new ListSection { Title = "Saved recordings", Items = items.ToArray() }];
+            return items.ToArray();
         }
         catch
         {
-            return [MessageSection("History is unavailable", "Open Handy once and try again. History stays on this PC.")];
+            return MessageSection("History is unavailable", "Open Handy once and try again. History stays on this PC.");
         }
     }
 
-    private static ListSection MessageSection(string title, string subtitle) =>
-        new()
-        {
-            Title = "History",
-            Items = [new ListItem(new NoOpCommand()) { Title = title, Subtitle = subtitle }],
-        };
+    private static IListItem[] MessageSection(string title, string subtitle) =>
+        [new ListItem(new NoOpCommand()) { Title = title, Subtitle = subtitle }];
 
     private static string FormatTimestamp(long timestamp)
     {
@@ -94,7 +90,7 @@ internal sealed partial class HandyHistoryPage : ListPage
     private static string Preview(string text)
     {
         var preview = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        return preview.Length <= 100 ? preview : preview[..97] + "…";
+        return preview.Length <= 100 ? preview : preview[..97] + "\u2026";
     }
 }
 
