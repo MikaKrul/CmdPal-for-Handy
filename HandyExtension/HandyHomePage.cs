@@ -45,24 +45,6 @@ internal sealed partial class HandyHomePage : ListPage
             Subtitle = "Browse history and copy transcription text",
             Icon = new IconInfo("\uE81C"),
         },
-        new ListItem(new HandyCustomWordsPage(_data))
-        {
-            Title = "Manage Dictionary",
-            Subtitle = "Add and remove custom words",
-            Icon = new IconInfo("\uE82D"),
-        },
-        new ListItem(new AddHandyCustomWordPage(_data))
-        {
-            Title = "Add Dictionary Word",
-            Subtitle = "Quickly add a word to the custom dictionary",
-            Icon = new IconInfo("\uE82E"),
-        },
-        new ListItem(new HandyPostProcessingPage(_data))
-        {
-            Title = "Post-processing",
-            Subtitle = "Choose providers, edit models, fallback and prompts",
-            Icon = new IconInfo("\uEB78"),
-        },
         new ListItem(new CopyLastTranscriptCommand(_data))
         {
             Title = "Copy Last Transcript",
@@ -75,6 +57,44 @@ internal sealed partial class HandyHomePage : ListPage
             Subtitle = "Paste the newest transcript into the active app",
             Icon = new IconInfo("\uE77F"),
         },
+        new ListItem(new AddHandyCustomWordPage(_data))
+        {
+            Title = "Add Dictionary Word",
+            Subtitle = "Quickly add a word to the custom dictionary",
+            Icon = new IconInfo("\uE82E"),
+        },
+        new ListItem(new HandyMorePage(_data, _configuredPath))
+        {
+            Title = "More",
+            Subtitle = "Microphone, model, language, dictionary, post-processing and folders",
+            Icon = new IconInfo("\uE712"),
+        },
+    ];
+}
+
+internal sealed partial class HandyMorePage : ListPage
+{
+    private readonly HandyLocalData _data;
+    private readonly Func<string?> _configuredPath;
+
+    public HandyMorePage(HandyLocalData data, Func<string?> configuredPath)
+    {
+        _data = data;
+        _configuredPath = configuredPath;
+        Name = "More";
+        Title = "More Handy features";
+        Icon = new IconInfo("\uE712");
+        PlaceholderText = "Choose a Handy feature";
+    }
+
+    public override IListItem[] GetItems() =>
+    [
+        new ListItem(new HandyMicrophonesPage(_data))
+        {
+            Title = "Select Microphone",
+            Subtitle = "Switch Handy's input device (quit Handy first to save)",
+            Icon = new IconInfo("\uE8D6"),
+        },
         new ListItem(new HandyTranscriptionModelsPage(_data))
         {
             Title = "Select Model",
@@ -86,6 +106,18 @@ internal sealed partial class HandyHomePage : ListPage
             Title = "Select Language",
             Subtitle = "Set this model's language (quit Handy first to save)",
             Icon = new IconInfo("\uE774"),
+        },
+        new ListItem(new HandyCustomWordsPage(_data))
+        {
+            Title = "Manage Dictionary",
+            Subtitle = "Add and remove custom words",
+            Icon = new IconInfo("\uE82D"),
+        },
+        new ListItem(new HandyPostProcessingPage(_data))
+        {
+            Title = "Post-processing",
+            Subtitle = "Choose providers, edit models, fallback and prompts",
+            Icon = new IconInfo("\uEB78"),
         },
         new ListItem(new OpenHandyRecordingsFolderCommand(_data))
         {
