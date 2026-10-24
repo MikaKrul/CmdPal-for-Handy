@@ -20,7 +20,7 @@ internal sealed partial class HandyTranscriptionModelsPage : ListPage
         _data = data;
         Name = "Select model";
         Title = "Handy transcription models";
-        Icon = new IconInfo("\uE8D2");
+        Icon = new IconInfo("\uEEA1");
     }
 
     public override IListItem[] GetItems()
@@ -37,7 +37,7 @@ internal sealed partial class HandyTranscriptionModelsPage : ListPage
             {
                 Title = model.Name,
                 Subtitle = $"{model.Id}{(model.IsSelected ? " - Current model" : string.Empty)}",
-                Icon = new IconInfo(model.IsSelected ? "\uE8FB" : "\uE8D2"),
+                Icon = new IconInfo(model.IsSelected ? "\uE8FB" : "\uEEA1"),
             }).ToArray();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException or JsonException)
@@ -56,7 +56,7 @@ internal sealed partial class HandyTranscriptionLanguagesPage : ListPage
         _data = data;
         Name = "Select language";
         Title = "Handy transcription language";
-        Icon = new IconInfo("\uE8D2");
+        Icon = new IconInfo("\uE774");
     }
 
     public override IListItem[] GetItems()
@@ -77,7 +77,7 @@ internal sealed partial class HandyTranscriptionLanguagesPage : ListPage
                 {
                     Title = "Auto-detect",
                     Subtitle = string.Equals(selectedLanguage, "auto", StringComparison.Ordinal) ? "Current language setting" : "Let Handy detect the spoken language",
-                    Icon = new IconInfo(string.Equals(selectedLanguage, "auto", StringComparison.Ordinal) ? "\uE8FB" : "\uE8D2"),
+                    Icon = new IconInfo(string.Equals(selectedLanguage, "auto", StringComparison.Ordinal) ? "\uE8FB" : "\uE909"),
                 });
             }
 
@@ -85,7 +85,7 @@ internal sealed partial class HandyTranscriptionLanguagesPage : ListPage
             {
                 Title = LanguageName(language),
                 Subtitle = string.Equals(selectedLanguage, language, StringComparison.Ordinal) ? $"{language} - Current language" : language,
-                Icon = new IconInfo(string.Equals(selectedLanguage, language, StringComparison.Ordinal) ? "\uE8FB" : "\uE8D2"),
+                Icon = new IconInfo(string.Equals(selectedLanguage, language, StringComparison.Ordinal) ? "\uE8FB" : "\uE774"),
             }));
             return items.Count > 0 ? items.ToArray() : [new ListItem(new NoOpCommand()) { Title = "This model has no language choices", Subtitle = "Handy will use this model's built-in language behavior." }];
         }
@@ -118,6 +118,7 @@ internal sealed partial class SelectHandyModelCommand : InvokableCommand
         _data = data;
         _modelId = modelId;
         Name = "Select model";
+        Icon = new IconInfo("\uEEA1");
     }
 
     public override CommandResult Invoke() => Run(() => _data.SetSelectedModel(_modelId));
@@ -150,6 +151,7 @@ internal sealed partial class SelectHandyLanguageCommand : InvokableCommand
         _data = data;
         _language = language;
         Name = "Select language";
+        Icon = new IconInfo("\uE774");
     }
 
     public override CommandResult Invoke() => SelectHandyModelCommand.Run(() => _data.SetSelectedLanguage(_language));
@@ -163,6 +165,7 @@ internal sealed partial class OpenHandyRecordingsFolderCommand : InvokableComman
     {
         _data = data;
         Name = "Open recordings folder";
+        Icon = new IconInfo("\uE838");
     }
 
     public override CommandResult Invoke()
@@ -193,6 +196,7 @@ internal sealed partial class PasteLastTranscriptCommand : InvokableCommand
     {
         _data = data;
         Name = "Paste last transcript";
+        Icon = new IconInfo("\uE77F");
     }
 
     public override CommandResult Invoke()

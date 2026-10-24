@@ -39,7 +39,7 @@ internal sealed partial class HandyHistoryPage : ListPage
             {
                 Title = string.IsNullOrWhiteSpace(entry.Title) ? FormatTimestamp(entry.Timestamp) : entry.Title,
                 Subtitle = Preview(entry.TranscriptionText),
-                Icon = new IconInfo("\uE714"),
+                Icon = new IconInfo("\uE8A5"),
                 MoreCommands =
                 [
                     new CommandContextItem(new HandyHistoryDetailPage(_data, entry))
@@ -66,7 +66,7 @@ internal sealed partial class HandyHistoryPage : ListPage
                 {
                     Title = "Load older history",
                     Subtitle = "Show the next page of saved recordings",
-                    Icon = new IconInfo("\uE72A"),
+                    Icon = new IconInfo("\uE70D"),
                 });
             }
 

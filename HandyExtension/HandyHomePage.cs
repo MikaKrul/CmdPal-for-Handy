@@ -15,7 +15,7 @@ internal sealed partial class HandyHomePage : ListPage
         _data = new HandyLocalData(configuredPath);
         Name = "Handy";
         Title = "Handy";
-        Icon = new IconInfo("\uE8D4");
+        Icon = IconHelpers.FromRelativePath("Assets\\HandyLogo.png");
         PlaceholderText = "Choose a Handy feature";
     }
 
@@ -25,13 +25,13 @@ internal sealed partial class HandyHomePage : ListPage
         {
             Title = "Toggle Recording",
             Subtitle = "Toggle Handy transcription recording on/off",
-            Icon = new IconInfo("\uE768"),
+            Icon = new IconInfo("\uE720"),
         },
         new ListItem(new HandyCommand("Transcribe with AI post-processing", "--toggle-post-process", _configuredPath))
         {
             Title = "Transcribe with AI post-processing",
             Subtitle = "Toggle transcription with Handy's AI post-processing",
-            Icon = new IconInfo("\uE8D2"),
+            Icon = new IconInfo("\uEB78"),
         },
         new ListItem(new HandyCommand("Cancel transcription", "--cancel", _configuredPath))
         {
@@ -49,19 +49,19 @@ internal sealed partial class HandyHomePage : ListPage
         {
             Title = "Manage Dictionary",
             Subtitle = "Add and remove custom words",
-            Icon = new IconInfo("\uE8D2"),
+            Icon = new IconInfo("\uE82D"),
         },
         new ListItem(new AddHandyCustomWordPage(_data))
         {
             Title = "Add Dictionary Word",
             Subtitle = "Quickly add a word to the custom dictionary",
-            Icon = new IconInfo("\uE710"),
+            Icon = new IconInfo("\uE82E"),
         },
         new ListItem(new HandyPostProcessingPage(_data))
         {
             Title = "Post-processing",
             Subtitle = "Choose providers, edit models, fallback and prompts",
-            Icon = new IconInfo("\uE8D2"),
+            Icon = new IconInfo("\uEB78"),
         },
         new ListItem(new CopyLastTranscriptCommand(_data))
         {
@@ -79,25 +79,25 @@ internal sealed partial class HandyHomePage : ListPage
         {
             Title = "Select Model",
             Subtitle = "Switch the active model (quit Handy first to save)",
-            Icon = new IconInfo("\uE8D2"),
+            Icon = new IconInfo("\uEEA1"),
         },
         new ListItem(new HandyTranscriptionLanguagesPage(_data))
         {
             Title = "Select Language",
             Subtitle = "Set this model's language (quit Handy first to save)",
-            Icon = new IconInfo("\uE8D2"),
+            Icon = new IconInfo("\uE774"),
         },
         new ListItem(new OpenHandyRecordingsFolderCommand(_data))
         {
             Title = "Open Recordings Folder",
             Subtitle = "Open Handy's recordings directory",
-            Icon = new IconInfo("\uE8B7"),
+            Icon = new IconInfo("\uE838"),
         },
         new ListItem(new HandyCommand("Open Handy", null, _configuredPath))
         {
             Title = "Open Handy",
             Subtitle = "Show the Handy window",
-            Icon = new IconInfo("\uE8A7"),
+            Icon = IconHelpers.FromRelativePath("Assets\\HandyLogo.png"),
         },
     ];
 }

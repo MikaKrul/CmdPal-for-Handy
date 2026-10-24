@@ -16,7 +16,7 @@ internal sealed partial class HandyCommand : InvokableCommand
         Name = name;
         _argument = argument;
         _configuredPath = configuredPath;
-        Icon = new IconInfo("\uE768");
+        Icon = IconHelpers.FromRelativePath("Assets\\HandyLogo.png");
     }
 
     public override ICommandResult Invoke()

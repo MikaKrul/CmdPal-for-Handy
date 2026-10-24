@@ -17,7 +17,7 @@ internal sealed partial class HandyPostProcessingPage : ListPage
         _data = data;
         Name = "Post-processing";
         Title = "Handy post-processing";
-        Icon = new IconInfo("\uE8D2");
+        Icon = new IconInfo("\uEB78");
     }
 
     public override IListItem[] GetItems()
@@ -37,13 +37,13 @@ internal sealed partial class HandyPostProcessingPage : ListPage
                 {
                     Title = settings.FallbackEnabled ? "Turn fallback model off" : "Turn fallback model on",
                     Subtitle = "Enable or disable the fallback model",
-                    Icon = new IconInfo("\uE8D2"),
+                    Icon = new IconInfo("\uE7E8"),
                 },
                 new ListItem(new HandyPostProcessingPromptsPage(_data))
                 {
                     Title = "Prompts",
                     Subtitle = "Create, edit, select, and remove post-processing prompts",
-                    Icon = new IconInfo("\uE8A5"),
+                    Icon = new IconInfo("\uE90A"),
                 },
             };
 
@@ -51,7 +51,7 @@ internal sealed partial class HandyPostProcessingPage : ListPage
             {
                 Title = provider.Label,
                 Subtitle = $"{(provider.IsActive ? "Active provider · " : string.Empty)}Model: {EmptyAsUnset(provider.Model)} · Fallback: {EmptyAsUnset(provider.FallbackModel)}",
-                Icon = new IconInfo(provider.IsActive ? "\uE8FB" : "\uE8D2"),
+                Icon = new IconInfo(provider.IsActive ? "\uE8FB" : "\uE753"),
                 MoreCommands =
                 [
                     new CommandContextItem(new SetHandyPostProcessingProviderCommand(_data, provider.Id))
@@ -83,7 +83,7 @@ internal sealed partial class HandyPostProcessingProviderPage : ListPage
         _provider = provider;
         Name = "Provider";
         Title = provider.Label;
-        Icon = new IconInfo("\uE8D2");
+        Icon = new IconInfo("\uE753");
     }
 
     public override IListItem[] GetItems()
@@ -231,7 +231,7 @@ internal sealed partial class HandyPostProcessingPromptsPage : ListPage
         _data = data;
         Name = "Prompts";
         Title = "Post-processing prompts";
-        Icon = new IconInfo("\uE8A5");
+        Icon = new IconInfo("\uE90A");
     }
 
     public override IListItem[] GetItems()
@@ -253,7 +253,7 @@ internal sealed partial class HandyPostProcessingPromptsPage : ListPage
             {
                 Title = prompt.Name,
                 Subtitle = prompt.IsSelected ? "Selected prompt · Click to edit" : "Click to edit this prompt",
-                Icon = new IconInfo(prompt.IsSelected ? "\uE8FB" : "\uE8A5"),
+                Icon = new IconInfo(prompt.IsSelected ? "\uE8FB" : "\uE90A"),
                 MoreCommands =
                 [
                     new CommandContextItem(new SelectHandyPostProcessingPromptCommand(_data, prompt.Id))
@@ -286,7 +286,7 @@ internal sealed partial class EditHandyPostProcessingPromptPage : ContentPage
         _form = new EditHandyPostProcessingPromptForm(data, prompt);
         Name = prompt is null ? "Add prompt" : "Edit prompt";
         Title = prompt is null ? "Add a prompt" : $"Edit {prompt.Name}";
-        Icon = new IconInfo("\uE8A5");
+        Icon = new IconInfo(prompt is null ? "\uE710" : "\uE70F");
     }
 
     public override IContent[] GetContent() => [_form];
@@ -355,6 +355,7 @@ internal sealed partial class ToggleHandyPostProcessingCommand : InvokableComman
         _data = data;
         _enabled = enabled;
         Name = enabled ? "Turn post-processing off" : "Turn post-processing on";
+        Icon = new IconInfo("\uE7E8");
     }
 
     public override CommandResult Invoke() => Save(() => _data.SetPostProcessingEnabled(!_enabled));
@@ -387,6 +388,7 @@ internal sealed partial class ToggleHandyPostProcessingFallbackCommand : Invokab
         _data = data;
         _enabled = enabled;
         Name = enabled ? "Turn fallback model off" : "Turn fallback model on";
+        Icon = new IconInfo("\uE7E8");
     }
 
     public override CommandResult Invoke() => ToggleHandyPostProcessingCommand.Save(() => _data.SetFallbackEnabled(!_enabled));
@@ -402,6 +404,7 @@ internal sealed partial class SetHandyPostProcessingProviderCommand : InvokableC
         _data = data;
         _providerId = providerId;
         Name = "Use this provider";
+        Icon = new IconInfo("\uE8FB");
     }
 
     public override CommandResult Invoke() => ToggleHandyPostProcessingCommand.Save(() => _data.SetActivePostProcessingProvider(_providerId));
@@ -417,6 +420,7 @@ internal sealed partial class SelectHandyPostProcessingPromptCommand : Invokable
         _data = data;
         _promptId = promptId;
         Name = "Select prompt";
+        Icon = new IconInfo("\uE8FB");
     }
 
     public override CommandResult Invoke() => ToggleHandyPostProcessingCommand.Save(() => _data.SelectPostProcessingPrompt(_promptId));
@@ -432,6 +436,7 @@ internal sealed partial class RemoveHandyPostProcessingPromptCommand : Invokable
         _data = data;
         _promptId = promptId;
         Name = "Remove prompt";
+        Icon = new IconInfo("\uE74D");
     }
 
     public override CommandResult Invoke() => ToggleHandyPostProcessingCommand.Save(() => _data.RemovePostProcessingPrompt(_promptId));

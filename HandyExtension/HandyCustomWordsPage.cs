@@ -16,7 +16,7 @@ internal sealed partial class HandyCustomWordsPage : ListPage
         _data = data;
         Name = "Custom words";
         Title = "Handy custom words";
-        Icon = new IconInfo("\uE8D2");
+        Icon = new IconInfo("\uE82D");
         PlaceholderText = "Search your custom words";
     }
 
@@ -30,7 +30,7 @@ internal sealed partial class HandyCustomWordsPage : ListPage
                 {
                     Title = "Add a custom word",
                     Subtitle = "Add a word or phrase to Handy's vocabulary",
-                    Icon = new IconInfo("\uE710"),
+                    Icon = new IconInfo("\uE82E"),
                 },
             }.ToList();
 
@@ -40,7 +40,7 @@ internal sealed partial class HandyCustomWordsPage : ListPage
                 {
                     Title = word,
                     Subtitle = "Open More commands to remove this word",
-                    Icon = new IconInfo("\uE8D2"),
+                    Icon = new IconInfo("\uE7C3"),
                     MoreCommands =
                     [
                         new CommandContextItem(new RemoveHandyCustomWordCommand(_data, word))
@@ -77,7 +77,7 @@ internal sealed partial class AddHandyCustomWordPage : ContentPage
         _form = new AddHandyCustomWordForm(data);
         Name = "Add custom word";
         Title = "Add a custom word";
-        Icon = new IconInfo("\uE710");
+        Icon = new IconInfo("\uE82E");
     }
 
     public override IContent[] GetContent() => [_form];
