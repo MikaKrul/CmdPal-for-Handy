@@ -187,10 +187,10 @@ internal sealed partial class CopyLastTranscriptCommand : InvokableCommand
         try
         {
             var entries = _data.ReadHistory(null, out _);
-            var transcript = entries.FirstOrDefault()?.TextToCopy;
+            var transcript = entries.Count > 0 ? entries[0].TextToCopy : null;
             return string.IsNullOrWhiteSpace(transcript)
                 ? CommandResult.ShowToast("Handy has no transcript to copy yet.")
-                : new CopyTextCommand(transcript).Invoke();
+                : (CommandResult)new CopyTextCommand(transcript).Invoke();
         }
         catch
         {

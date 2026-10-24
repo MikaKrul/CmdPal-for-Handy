@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 
@@ -176,7 +177,13 @@ internal sealed partial class EditHandyPostProcessingProviderForm : FormContent
           "actions": [ { "type": "Action.Submit", "title": "Save provider settings" } ]
         }
         """;
-        DataJson = JsonSerializer.Serialize(new { model = provider.Model, fallbackModel = provider.FallbackModel, baseUrl = provider.BaseUrl, apiFormat = provider.ApiFormat });
+        DataJson = new JsonObject
+        {
+            ["model"] = provider.Model,
+            ["fallbackModel"] = provider.FallbackModel,
+            ["baseUrl"] = provider.BaseUrl,
+            ["apiFormat"] = provider.ApiFormat,
+        }.ToJsonString();
     }
 
     public override CommandResult SubmitForm(string payload)
@@ -305,7 +312,11 @@ internal sealed partial class EditHandyPostProcessingPromptForm : FormContent
           "actions": [ { "type": "Action.Submit", "title": "Save prompt" } ]
         }
         """;
-        DataJson = JsonSerializer.Serialize(new { name = prompt?.Name ?? string.Empty, prompt = prompt?.Prompt ?? string.Empty });
+        DataJson = new JsonObject
+        {
+            ["name"] = prompt?.Name ?? string.Empty,
+            ["prompt"] = prompt?.Prompt ?? string.Empty,
+        }.ToJsonString();
     }
 
     public override CommandResult SubmitForm(string payload)

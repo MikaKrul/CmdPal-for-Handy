@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -251,7 +251,7 @@ internal sealed class HandyLocalData
             var existing = prompts.OfType<JsonObject>().FirstOrDefault(item => string.Equals(item["id"]?.GetValue<string>(), promptId, StringComparison.Ordinal));
             if (existing is null)
             {
-                prompts.Add(new JsonObject { ["id"] = promptId, ["name"] = name.Trim(), ["prompt"] = prompt.Trim() });
+                prompts.Add((JsonNode)new JsonObject { ["id"] = promptId, ["name"] = name.Trim(), ["prompt"] = prompt.Trim() });
             }
             else
             {
