@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -24,7 +25,7 @@ internal sealed partial class HandyCustomWordsPage : ListPage
     {
         try
         {
-            var items = new[]
+            var items = new List<IListItem>
             {
                 new ListItem(new AddHandyCustomWordPage(_data))
                 {
@@ -32,7 +33,7 @@ internal sealed partial class HandyCustomWordsPage : ListPage
                     Subtitle = "Add a word or phrase to Handy's vocabulary",
                     Icon = new IconInfo("\uE82E"),
                 },
-            }.ToList();
+            };
 
             foreach (var word in _data.ReadCustomWords())
             {

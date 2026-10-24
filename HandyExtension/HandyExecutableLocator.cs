@@ -7,6 +7,8 @@ namespace HandyExtension;
 internal static class HandyExecutableLocator
 {
     private static readonly string[] CandidateNames = ["handy.exe", "Handy.exe"];
+    private static readonly object DiscoveryLock = new();
+    private static string? _discoveredExecutable;
 
     public static string? Find(string? configuredPath)
     {
@@ -16,6 +18,43 @@ internal static class HandyExecutableLocator
             return File.Exists(configured) ? configured : null;
         }
 
+        // Discovery probes PATH and the common install folders on every history
+        // query, so cache the found path - but only while it still exists, so a
+        // Handy that was installed or removed is picked up on the next call.
+        lock (DiscoveryLock)
+        {
+            if (_discoveredExecutable is { } cached && File.Exists(cached))
+            {
+                return cached;
+            }
+        }
+
+        var found = Discover();
+        if (found is not null)
+        {
+            lock (DiscoveryLock)
+            {
+                _discoveredExecutable = found;
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// Drops the cached discovery result. Called by the tests, which change PATH
+    /// and the file system between runs.
+    /// </summary>
+    internal static void ClearDiscoveryCache()
+    {
+        lock (DiscoveryLock)
+        {
+            _discoveredExecutable = null;
+        }
+    }
+
+    private static string? Discover()
+    {
         foreach (var name in CandidateNames)
         {
             var onPath = Environment.GetEnvironmentVariable("PATH")?

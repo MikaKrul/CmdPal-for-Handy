@@ -126,10 +126,14 @@ internal sealed partial class HandyHistoryPage : DynamicListPage
         if (!string.IsNullOrWhiteSpace(search))
         {
             var index = IndexOf(text, search);
-            if (index < 0 && entry.PostProcessedText is { } processed && IndexOf(processed, search) >= 0)
+            if (index < 0 && entry.PostProcessedText is { } processed)
             {
-                text = processed;
-                index = IndexOf(processed, search);
+                var processedIndex = IndexOf(processed, search);
+                if (processedIndex >= 0)
+                {
+                    text = processed;
+                    index = processedIndex;
+                }
             }
 
             if (index >= 0)
@@ -235,7 +239,7 @@ internal sealed partial class CopyLastTranscriptCommand : InvokableCommand
     {
         try
         {
-            var entries = _data.ReadHistory(null, out _);
+            var entries = _data.ReadHistory(null, out _, limit: 1);
             var transcript = entries.Count > 0 ? entries[0].TextToCopy : null;
             return string.IsNullOrWhiteSpace(transcript)
                 ? CommandResult.ShowToast("Handy has no transcript to copy yet.")

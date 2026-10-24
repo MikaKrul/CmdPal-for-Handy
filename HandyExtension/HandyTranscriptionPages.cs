@@ -203,7 +203,7 @@ internal sealed partial class PasteLastTranscriptCommand : InvokableCommand
     {
         try
         {
-            var entries = _data.ReadHistory(null, out _);
+            var entries = _data.ReadHistory(null, out _, limit: 1);
             var transcript = entries.Count > 0 ? entries[0].TextToCopy : null;
             if (string.IsNullOrWhiteSpace(transcript))
             {

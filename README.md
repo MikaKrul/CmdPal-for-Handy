@@ -1,49 +1,66 @@
 # HandyExtension
 
-HandyExtension adds Handy's transcription controls to the Microsoft PowerToys Command Palette. It is an independent community project and is not affiliated with the Handy maintainers.
+A PowerToys Command Palette extension for [Handy](https://github.com/cjpais/Handy), the speech-to-text app. This is an independent community project and is not affiliated with the Handy maintainers.
 
-## Handy in Command Palette
+## What you can do
 
-Select **Handy** in PowerToys Command Palette to open the extension's home page. By default it focuses on transcripts and the dictionary; the recording actions and the remaining settings live under its **More** page:
+Open Command Palette (`Win`+`Alt`+`Space` by default) and select **Handy**:
 
-- Browse Handy's local transcription history, open a transcript, and play its saved WAV recording in your default audio player. Use **Load older history** to browse more than 50 entries. **Search Transcripts** searches the *full* saved text - the title, the raw transcription, and the post-processed text - so words deep inside a long transcript are found even though the list only shows a short preview. While searching, the preview centers on the match so the result is visible. An individual item's **More commands** menu copies its transcript, and the home page copies the newest transcript.
-- Switch the recording microphone and the installed transcription model, quickly add a dictionary word, or manage the custom dictionary.
-- Under **More**: toggle recording, use AI post-processing, or cancel an operation; paste the newest transcript into the active app; set the model's language; configure post-processing (providers, models, fallback, prompts); open the recordings folder; or open Handy.
+- Search your transcription history. The search reads the full saved text, raw and post-processed, not just the visible preview, and the list centers the preview on the match. **Load older history** pages past the first 50 entries.
+- Copy the newest transcript to the clipboard, or paste it into the active app.
+- Open a transcript, play its recording in your default audio player, or open the recordings folder.
+- Add and remove custom dictionary words.
+- Choose the microphone, the transcription model, its language, and post-processing (provider, model, fallback, prompts).
+- Start and stop transcription, with or without AI post-processing, and cancel a running operation. These control commands only work while Handy is running, and the extension asks you to open Handy first if it is not. Handy documents its CLI flags as beta functionality.
 
-### Menu layout
+## Change the menu
 
-The menu layout is yours to change. Use any command's **More commands** (…) menu to pin it to the **top level** of Command Palette, move it between the home page and the More page, or hide it from all menus. A top-level command appears directly in the palette's main list, without opening the Handy page first - handy for favorites like Copy Last Transcript, Toggle Recording, or Add Dictionary Word, and the palette list refreshes immediately. Hidden commands come back through **Customize Menu**: it lists every command with its current placement, and selecting one opens a submenu with **Top level**, **Home page**, **More page**, and **Hidden** options, with the current choice marked. Each row can also be reset to its default, and **Reset all to defaults** undoes every change. The layout is saved in `%LOCALAPPDATA%\HandyExtension\menu.json` as one `"command id": "top" | "home" | "more" | "hidden"` pair per command, so it can also be edited by hand or reset by deleting the file.
+Every command has a **More commands** (…) menu. Use it to pin a favorite to the **top level** of the palette, move it between the home page and the More page, or hide it. A pinned command shows up directly in the palette's main list, next to the Handy page, and the list refreshes right away.
 
-History is read directly from Handy's local SQLite database and audio files. Custom words are stored in Handy's local settings file. To avoid Handy overwriting an external settings change, fully quit Handy from its tray menu before adding or removing custom words; then reopen Handy to apply them. Post-processing provider, model, fallback, prompt, and microphone settings use the same local settings file and also require Handy to be fully closed before editing. Every settings change is transactional: the extension verifies the file did not change while the edit was being prepared and refuses to write if it did, and the write itself is atomic - it first writes a complete new file and then swaps it in, keeping the previous version as `settings_store.json.HandyExtension.bak` next to the settings file, so the last state can be restored by hand if a change ever goes wrong. Microphone choices list Windows' active recording devices by the same endpoint names Handy matches, with a **Default** entry that follows the Windows default microphone; the selection takes effect when Handy next starts. The extension does not show or intentionally change API-key values. Installed model choices come from Handy's `--list-models --json` command. The extension does not change Handy's source code and does not send local data over the network. Handy may send a transcript to the post-processing provider configured by the user when that feature is used.
+**Customize Menu**, at the bottom of both pages, lists every command with its current placement. Selecting one opens a submenu with Top level, Home page, More page, and Hidden, with the current choice marked. You can reset one command or all of them.
 
-Handy's control flags are handled by its single-instance mechanism and are only sent when Handy is already running. If it is not running, the extension asks you to open it first; this avoids starting Handy without performing the requested control action. Handy describes its CLI as beta functionality. The `--start-hidden` flag is not exposed because launching it while Handy is already running raises the existing window instead of starting a hidden instance.
+The layout is saved in `%LOCALAPPDATA%\HandyExtension\menu.json` as one `"command id": "top" | "home" | "more" | "hidden"` pair per command. Edit it by hand, or delete the file to reset everything.
 
 ## Requirements
 
-- Windows 11 for the PowerToys Command Palette host (the extension package targets Windows 10 version 19041 or later).
-- [Microsoft PowerToys](https://developer.microsoft.com/en-us/windows/powertoys/) with Command Palette enabled.
-- [Handy for Windows](https://github.com/cjpais/Handy/releases/latest) installed. For remote-control commands, Handy must support its documented CLI flags.
+- Windows 11 with [Microsoft PowerToys](https://developer.microsoft.com/en-us/windows/powertoys/) and Command Palette enabled. The extension package itself targets Windows 10 version 19041 or later.
+- [Handy for Windows](https://github.com/cjpais/Handy/releases/latest) installed.
 
-## Install and use
+## Install
 
-Download the latest [HandyExtension release](https://github.com/MikaKrul/HandyExtension/releases/latest). It contains the signed MSIX package, the public signing certificate, and a SHA-256 checksum. You do not need Visual Studio or the .NET SDK to install it.
+Download the newest [release](https://github.com/MikaKrul/HandyExtension/releases/latest). It contains the signed MSIX, the public signing certificate, and a SHA-256 checksum. You do not need Visual Studio or the .NET SDK.
 
-The package uses a self-signed certificate. Windows does not trust it automatically, so install the included public certificate once before installing or updating the MSIX. Windows App Installer checks the **Local Machine > Trusted People** store, so this step requires administrator approval:
+1. The package is signed with a self-signed certificate, so trust the publisher once. In PowerShell as Administrator, from the download folder, run:
 
-1. Download `HandyExtension.cer` and `HandyExtension.msix` from the release.
-2. Open PowerShell as Administrator. From the folder containing the downloaded certificate, run `Import-Certificate -FilePath .\HandyExtension.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople`. Alternatively, double-click the `.cer`, choose **Install Certificate**, select **Local Machine**, then place it in **Trusted People**. Do not install it in **Trusted Root Certification Authorities**.
-3. Open `HandyExtension.msix` and choose **Install**. For future updates signed by this project certificate, install the new MSIX; you do not need to import the certificate again. Before installing an update, exit PowerToys from its tray menu: while the Command Palette is running it keeps the installed package in use, and the update fails with error `0x80073CF8`.
-4. Install and open Handy, ensure PowerToys Command Palette is enabled, then run **Reload Command Palette Extension** and choose Handy.
+   ```powershell
+   Import-Certificate -FilePath .\HandyExtension.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+   ```
 
-This certificate identifies the package publisher and lets Windows verify that the signed package has not changed. It is self-signed, not issued by a public certificate authority; you are choosing to trust this publisher on this computer. The release workflow builds and signs the MSIX on GitHub Actions. Its private key is stored as encrypted GitHub Actions secrets and is never included in the repository or release.
+   Put it in Trusted People, not in Trusted Root Certification Authorities. After this one-time step, updates install without touching the certificate again.
 
-If Handy is not found automatically, open Command Palette extension settings and set **Handy executable path** to the full path of `Handy.exe`. The setting is local to the extension host. Automatic discovery checks `PATH` and common per-user and machine installation folders; other installation layouts can use the explicit setting.
+2. Exit PowerToys from its tray menu, then run `Add-AppxPackage -Path .\HandyExtension.msix`, or open the MSIX and choose Install. Exiting PowerToys matters: while the Command Palette runs, it keeps the installed package in use and an update fails with error `0x80073CF8`.
+
+3. Start PowerToys, open Command Palette, reload extensions, and select **Handy**.
+
+The release workflow builds and signs the MSIX on GitHub Actions. The private signing key is an encrypted secret there and never enters the repository or the release. Report security issues privately through GitHub Security Advisories for this repository.
+
+If Handy is not found automatically, set **Handy executable path** in the extension settings to the full path of `Handy.exe`. Discovery checks `PATH` and the common per-user and machine install folders; other layouts need the explicit setting.
+
+## Settings changes
+
+The extension writes custom words, microphone, model, language, and post-processing choices directly to Handy's local `settings_store.json`. Fully quit Handy from its tray menu first: if Handy is running, it overwrites the file on exit and your change is lost.
+
+Every change is protected three ways:
+
+1. The extension refuses to write while a Handy process is running.
+2. Just before saving, it re-reads the file and refuses if anything changed it in the meantime.
+3. The write is atomic, and the previous version stays behind as `settings_store.json.HandyExtension.bak` next to the settings file, so you can restore by hand if something ever goes wrong.
+
+Reopen Handy after a change to apply it. Microphone lists Windows' active recording devices with a **Default** entry that follows the Windows default microphone.
 
 ## Development
 
-Open `HandyExtension.sln` in a recent Visual Studio installation with the workloads above. The project targets `net10.0-windows10.0.26100.0`; restore NuGet packages, then build the solution in Release for x64 or ARM64. The test project covers configured path validation, `PATH` discovery, menu layout persistence, history database paging and full-text search, settings file robustness (corrupt JSON, missing settings object, concurrent modification, backup creation), and recorded-audio file name safety. GitHub Actions runs these tests and a Windows x64 Release build for pushes and pull requests to `main` or `develop`.
-
-Useful checks when the .NET SDK is installed:
+Open `HandyExtension.sln` in Visual Studio, or use the .NET SDK from the repository root:
 
 ```powershell
 dotnet restore HandyExtension.sln
@@ -51,34 +68,34 @@ dotnet test HandyExtension.Tests/HandyExtension.Tests.csproj --configuration Rel
 dotnet build HandyExtension.sln --configuration Release --no-restore -p:Platform=x64
 ```
 
+The extension targets `net10.0-windows10.0.26100.0`. The tests cover executable discovery, menu layout persistence, the history database (paging, full-text search over raw and post-processed text, missing or corrupt databases and columns), settings robustness (corrupt JSON, concurrent modification, backups), and audio file name validation. GitHub Actions runs the tests and a Windows x64 Release build for pushes and pull requests to `main` or `develop`. A separate, manually started workflow publishes the versioned MSIX release.
+
 ## Manual end-to-end test
 
-1. Install and open Handy. Complete its first-run setup and confirm its microphone works.
-2. Install PowerToys, enable Command Palette, and install HandyExtension as described above.
-3. Open Command Palette (`Win`+`Alt`+`Space` by default), reload extensions, and select **Handy**.
-4. Confirm the home page shows Search Transcripts, Copy Last Transcript, Select Microphone, Select Model, Manage Dictionary, Add Dictionary Word, Customize Menu, and More. Open **More** and confirm it shows Toggle Recording, Transcribe with AI post-processing, Cancel transcription, Paste Last Transcript, Select Language, Post-processing, Open Recordings Folder, Open Handy, and Customize Menu. Test copy and paste using a harmless short transcript, with a blank Notepad document as the active app. Quit Handy before selecting a microphone, model, or language; reopen Handy afterward to apply the change. In Select Microphone, confirm Windows' recording devices are listed and the current choice is marked. In Search Transcripts, use an item's More commands menu to copy its transcript or open its WAV in the default player. Then search for a word that occurs only deep inside a long transcript, beyond the first 100 characters: confirm the entry is found, the preview centers on the match, and "No matching transcripts" appears for a term that is nowhere in the history.
-5. Open **Customize Menu**. Select **Select Model**, confirm a submenu opens with Top level, Home page, More page, and Hidden and that the current choice is marked, choose **More page**, and confirm the placement changes. Use its More commands menu to reset it to the default. On the home page, use **Copy Last Transcript**'s More commands menu to choose **Pin to top level**, close the palette, reopen it, and confirm the command now appears directly in the palette's main list next to the Handy page; then set it back to the home page from Customize Menu. Also use a command's More commands menu to hide **Add Dictionary Word**, confirm it disappears from the home page, then restore it from Customize Menu. Select **Reset all to defaults** and confirm every placement returns to its default and the pinned command disappears from the top level.
-6. Open **Custom words**. Fully quit Handy from the tray menu, add a temporary word, then reopen Handy and confirm it appears in Handy's custom words settings. Quit Handy again, remove the temporary word through Command Palette, and reopen Handy to confirm it is gone.
-7. With Handy open, choose a downloaded model and a language it supports. Then fully quit Handy, open **Post-processing**, change the active provider or model, and save a prompt. Reopen Handy and verify the settings took effect. Quit Handy before making further extension-side settings edits.
-8. With Handy running, select **Start or stop transcription**. Confirm Handy shows that recording started, select the command again, then dictate a short, non-sensitive phrase into a blank Notepad document and confirm it appears. Repeat with AI post-processing if configured, and use **Cancel transcription** to confirm it stops without inserting a transcript.
-9. If Handy is not found, set the full `Handy.exe` path in extension settings and retry.
+The automated tests do not record audio. Walk through this against an installed Handy profile:
 
-The automated tests cover executable path selection and discovery, menu layout persistence, the history database (paging, full-text search across raw and post-processed text, LIKE-wildcard escaping, missing or corrupt databases and columns), settings file robustness (corrupt JSON, missing settings object, concurrent modification, backups), and audio file name validation; they do not record audio. History, custom words, and post-processing settings require a Windows end-to-end check against an installed Handy profile. GitHub Actions runs the automated tests and Windows x64 Release build for pushes and pull requests to `main` or `develop`. A separate manually started workflow builds, signs, verifies, and publishes the versioned MSIX GitHub Release.
+1. Record a short, non-sensitive phrase with Handy, with a blank Notepad document as the target.
+2. In Search Transcripts, search for a word that occurs only deep inside that transcript, past the first 100 characters. The entry must appear with the preview centered on the match, and a nonsense word must show "No matching transcripts".
+3. Use an item's More commands menu to copy the transcript and to play the WAV.
+4. Test Copy Last Transcript and Paste Last Transcript against Notepad.
+5. Fully quit Handy. Add a custom word through the extension, reopen Handy, and confirm it appears in Handy's settings. Remove the word the same way and confirm it is gone.
+6. Quit Handy again. Change the microphone, model, language, and a post-processing setting one by one, reopening Handy after each change to confirm it took effect. Select Microphone must list Windows' recording devices with the current choice marked.
+7. With Handy running, test start and stop transcription, AI post-processing, and cancel transcription.
+8. Pin a command to top level and confirm it appears in the palette's main list. Hide a command from its More commands menu and restore it through Customize Menu. Reset all to defaults and confirm the layout is back to stock.
 
 ## Troubleshooting
 
-- **Handy was not found:** set the full `Handy.exe` path in extension settings.
-- **A control command did not act:** open Handy once, confirm the installed Handy version supports the flag, then retry. The extension cannot inspect Handy's recording state.
-- **Windows says the publisher is unknown or the package is untrusted:** install the release's `.cer` into **Local Machine > Trusted People**, then try the MSIX again.
-- **The updated extension is not visible:** install the updated MSIX and run **Reload Command Palette Extension**.
-- **An update fails with error `0x80073CF8` ("the user canceled the install request"):** the installed package is still in use by the running Command Palette. Fully exit PowerToys from its tray menu, which also stops the Command Palette host and any loaded extension, then install the MSIX again and start PowerToys. If the dialog keeps failing, close PowerToys and run `Add-AppxPackage -Path .\HandyExtension.msix` in PowerShell instead.
+- Handy is not found: set the full `Handy.exe` path in the extension settings.
+- A control command does nothing: open Handy first, and confirm the installed version supports the flag. The extension cannot see Handy's recording state.
+- An update fails with `0x80073CF8`: exit PowerToys from its tray menu, install the MSIX again, and start PowerToys.
+- The installed update is not visible: run **Reload Command Palette Extension**.
 
-## Privacy and security
+## Privacy
 
-The extension launches Handy locally for user-selected controls and for its local model list. It reads Handy history and recordings only from the local profile; audio playback is opened through the Windows default app. Custom word changes update Handy's local settings file only when Handy is closed. The extension itself does not send history, recordings, transcripts, custom words, post-processing settings, or API-key values over the network. Handy may send transcripts to the configured post-processing provider when that feature is used. The extension does not show or intentionally change API-key values. Installed model choices come from Handy's `--list-models --json` command; microphone names come from Windows' local device enumeration. Process arguments use `ProcessStartInfo.ArgumentList`; no shell is invoked. Report security issues privately through GitHub's Security Advisories for this repository.
+The extension runs locally. It reads history, recordings, and settings from the local profile and sends nothing over the network. It does not show or change API-key values. Handy itself may send a transcript to the post-processing provider you configured when you use that feature.
 
-## Distribution status and limitations
+## Status and license
 
-The project is an early development build. Local packaged deployment is configured, but Store, WinGet, and Extension Gallery distribution are not configured or validated. Automated tests cover executable path selection, menu layout persistence, history database and settings file robustness, and audio file name validation; Handy executable discovery is best-effort, so configure the path explicitly for custom installs. History and custom word access depend on Handy's current local file layout; the tests exercise that layout with generated databases and settings files, and a Windows end-to-end check against an installed Handy profile remains required. The extension can check whether a Handy process is running but cannot query whether it is recording or confirm that a control action succeeded.
+Early development build. Store, WinGet, and Extension Gallery distribution are not configured or validated. History and settings access depend on Handy's current local file layout; the tests exercise that layout with generated databases and settings files, and a Windows end-to-end check against an installed Handy profile is still required.
 
-Handy is a separate project. Its CLI details are documented at [cjpais/Handy](https://github.com/cjpais/Handy). The upstream Handy repository uses the MIT license; this project is licensed under MIT as shown in [LICENSE](LICENSE).
+Handy is a separate project by [cjpais](https://github.com/cjpais/Handy). Both projects use the MIT license; see [LICENSE](LICENSE).

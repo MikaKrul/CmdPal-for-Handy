@@ -99,8 +99,9 @@ internal sealed class HandyLocalData
     /// Reads a page of history entries, newest first. A search term matches anywhere
     /// in the title, the raw transcription text, or the post-processed text - not
     /// just the preview shown in the list - with LIKE wildcards taken literally.
+    /// Pass a smaller <paramref name="limit"/> to read only the newest entry.
     /// </summary>
-    public IReadOnlyList<HandyHistoryEntry> ReadHistory(long? beforeId, out bool hasMore, string? search = null)
+    public IReadOnlyList<HandyHistoryEntry> ReadHistory(long? beforeId, out bool hasMore, string? search = null, int limit = HistoryPageSize)
     {
         var historyPath = Path.Combine(GetDataDirectory(), "history.db");
         if (!File.Exists(historyPath))
@@ -120,19 +121,9 @@ internal sealed class HandyLocalData
 
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
+        var hasPostProcessedText = HasPostProcessedTextColumn(connection, historyPath);
 
         using var command = connection.CreateCommand();
-        var hasPostProcessedText = false;
-        using (var schemaCommand = connection.CreateCommand())
-        {
-            schemaCommand.CommandText = "PRAGMA table_info(transcription_history)";
-            using var schemaReader = schemaCommand.ExecuteReader();
-            while (schemaReader.Read())
-            {
-                hasPostProcessedText |= string.Equals(schemaReader.GetString(1), "post_processed_text", StringComparison.OrdinalIgnoreCase);
-            }
-        }
-
         var postProcessedColumn = hasPostProcessedText ? "post_processed_text" : "NULL";
         var conditions = new List<string>();
         if (beforeId.HasValue)
@@ -147,7 +138,7 @@ internal sealed class HandyLocalData
 
         var whereClause = conditions.Count > 0 ? $" WHERE {string.Join(" AND ", conditions)}" : string.Empty;
         command.CommandText = $"SELECT id, file_name, timestamp, saved, title, transcription_text, {postProcessedColumn} FROM transcription_history{whereClause} ORDER BY id DESC LIMIT $limit";
-        command.Parameters.AddWithValue("$limit", HistoryPageSize + 1);
+        command.Parameters.AddWithValue("$limit", limit + 1);
         if (beforeId.HasValue)
         {
             command.Parameters.AddWithValue("$beforeId", beforeId.Value);
@@ -158,7 +149,7 @@ internal sealed class HandyLocalData
             command.Parameters.AddWithValue("$search", $"%{EscapeLikeValue(search)}%");
         }
 
-        var entries = new List<HandyHistoryEntry>(HistoryPageSize + 1);
+        var entries = new List<HandyHistoryEntry>(limit + 1);
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
@@ -172,13 +163,47 @@ internal sealed class HandyLocalData
                 reader.IsDBNull(6) ? null : reader.GetString(6)));
         }
 
-        hasMore = entries.Count > HistoryPageSize;
+        hasMore = entries.Count > limit;
         if (hasMore)
         {
             entries.RemoveAt(entries.Count - 1);
         }
 
         return entries;
+    }
+
+    // The schema probe costs one query per read; the column set only changes when
+    // a new Handy version rewrites the database, so cache it per database file.
+    private static readonly object HistorySchemaLock = new();
+    private static readonly Dictionary<string, bool> HistorySchemaHasPostProcessedText = new(StringComparer.OrdinalIgnoreCase);
+
+    private static bool HasPostProcessedTextColumn(SqliteConnection connection, string historyPath)
+    {
+        lock (HistorySchemaLock)
+        {
+            if (HistorySchemaHasPostProcessedText.TryGetValue(historyPath, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        var result = false;
+        using (var schemaCommand = connection.CreateCommand())
+        {
+            schemaCommand.CommandText = "PRAGMA table_info(transcription_history)";
+            using var schemaReader = schemaCommand.ExecuteReader();
+            while (schemaReader.Read())
+            {
+                result |= string.Equals(schemaReader.GetString(1), "post_processed_text", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        lock (HistorySchemaLock)
+        {
+            HistorySchemaHasPostProcessedText[historyPath] = result;
+        }
+
+        return result;
     }
 
     private static string GetStringOrEmpty(SqliteDataReader reader, int ordinal) =>
@@ -581,15 +606,9 @@ internal sealed class HandyLocalData
         if (executable is not null)
         {
             var executableDirectory = Path.GetDirectoryName(executable);
-            if (!string.IsNullOrEmpty(executableDirectory))
+            if (!string.IsNullOrEmpty(executableDirectory) && IsPortableInstall(executableDirectory))
             {
-                var markerPath = Path.Combine(executableDirectory, "portable");
-                var portableDataPath = Path.Combine(executableDirectory, "Data");
-                var validMarker = File.Exists(markerPath) && File.ReadAllText(markerPath).Trim().StartsWith(PortableMarkerContents, StringComparison.Ordinal);
-                if (validMarker || (File.Exists(markerPath) && Directory.Exists(portableDataPath)))
-                {
-                    return portableDataPath;
-                }
+                return Path.Combine(executableDirectory, "Data");
             }
         }
 
@@ -600,6 +619,34 @@ internal sealed class HandyLocalData
         }
 
         return Path.Combine(roamingData, HandyIdentifier);
+    }
+
+    // The marker probe reads the marker file on every history query; the layout
+    // only changes when the user switches Handy's install style, so cache it.
+    private readonly object _portableInstallLock = new();
+    private readonly Dictionary<string, bool> _portableInstallCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool IsPortableInstall(string executableDirectory)
+    {
+        lock (_portableInstallLock)
+        {
+            if (_portableInstallCache.TryGetValue(executableDirectory, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        var markerPath = Path.Combine(executableDirectory, "portable");
+        var portableDataPath = Path.Combine(executableDirectory, "Data");
+        var validMarker = File.Exists(markerPath) && File.ReadAllText(markerPath).Trim().StartsWith(PortableMarkerContents, StringComparison.Ordinal);
+        var isPortable = validMarker || (File.Exists(markerPath) && Directory.Exists(portableDataPath));
+
+        lock (_portableInstallLock)
+        {
+            _portableInstallCache[executableDirectory] = isPortable;
+        }
+
+        return isPortable;
     }
 }
 

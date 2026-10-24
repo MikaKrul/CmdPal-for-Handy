@@ -21,6 +21,7 @@ public sealed class HandyExecutableLocatorTests
     [TestCleanup]
     public void Cleanup()
     {
+        HandyExecutableLocator.ClearDiscoveryCache();
         Environment.SetEnvironmentVariable("PATH", _originalPath);
         if (Directory.Exists(_directory))
         {
