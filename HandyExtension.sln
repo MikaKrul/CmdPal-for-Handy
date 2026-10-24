@@ -5,6 +5,8 @@ VisualStudioVersion = 17.13.35507.96 d17.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HandyExtension", "HandyExtension\HandyExtension.csproj", "{79F86DE5-70B1-4EC1-9832-DF428B55E466}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HandyExtension.Tests", "HandyExtension.Tests\HandyExtension.Tests.csproj", "{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -33,6 +35,14 @@ Global
 		{79F86DE5-70B1-4EC1-9832-DF428B55E466}.Release|x86.ActiveCfg = Release|x86
 		{79F86DE5-70B1-4EC1-9832-DF428B55E466}.Release|x86.Build.0 = Release|x86
 		{79F86DE5-70B1-4EC1-9832-DF428B55E466}.Release|x86.Deploy.0 = Release|x86
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Debug|ARM64.ActiveCfg = Debug|x64
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Debug|ARM64.Build.0 = Debug|x64
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Debug|x64.ActiveCfg = Debug|x64
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Debug|x64.Build.0 = Debug|x64
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Release|ARM64.ActiveCfg = Release|x64
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Release|ARM64.Build.0 = Release|x64
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Release|x64.ActiveCfg = Release|x64
+		{EA69FEAC-2F41-4F18-814A-CF64A3A3B016}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
