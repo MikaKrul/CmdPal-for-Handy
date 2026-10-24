@@ -268,6 +268,19 @@ internal sealed class HandyLocalData
 
     public string ReadSelectedLanguage() => ReadSettingsObject()["selected_language"]?.GetValue<string>() ?? "auto";
 
+    public string? ReadSelectedMicrophone() => ReadSettingsObject()["selected_microphone"]?.GetValue<string>();
+
+    public void SetSelectedMicrophone(string? deviceName)
+    {
+        EnsureHandyClosed();
+        if (deviceName is not null && !WindowsAudioInputDevices.ListInputDevices().Any(device => string.Equals(device.Name, deviceName, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Choose a microphone from Windows' input device list.");
+        }
+
+        UpdateSettings(settings => settings["selected_microphone"] = deviceName);
+    }
+
     public void SetSelectedModel(string modelId)
     {
         EnsureHandyClosed();
