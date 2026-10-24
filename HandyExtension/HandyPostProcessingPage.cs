@@ -59,7 +59,7 @@ internal sealed partial class HandyPostProcessingPage : ListPage
                         Subtitle = $"Select {provider.Label} for post-processing",
                     },
                 ],
-            })));
+            }));
             return items.ToArray();
         }
         catch
@@ -260,7 +260,7 @@ internal sealed partial class HandyPostProcessingPromptsPage : ListPage
                         Subtitle = "Delete this post-processing prompt",
                     },
                 ],
-            })));
+            }));
             return items.ToArray();
         }
         catch
