@@ -86,7 +86,7 @@ internal sealed partial class HandyTranscriptionLanguagesPage : ListPage
                 Title = LanguageName(language),
                 Subtitle = string.Equals(selectedLanguage, language, StringComparison.Ordinal) ? $"{language} - Current language" : language,
                 Icon = new IconInfo(string.Equals(selectedLanguage, language, StringComparison.Ordinal) ? "\uE8FB" : "\uE8D2"),
-            })));
+            }));
             return items.Count > 0 ? items.ToArray() : [new ListItem(new NoOpCommand()) { Title = "This model has no language choices", Subtitle = "Handy will use this model's built-in language behavior." }];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException or JsonException)
