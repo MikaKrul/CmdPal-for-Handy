@@ -30,7 +30,7 @@ The package uses a self-signed certificate. Windows does not trust it automatica
 
 1. Download `HandyExtension.cer` and `HandyExtension.msix` from the release.
 2. Open PowerShell as Administrator. From the folder containing the downloaded certificate, run `Import-Certificate -FilePath .\HandyExtension.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople`. Alternatively, double-click the `.cer`, choose **Install Certificate**, select **Local Machine**, then place it in **Trusted People**. Do not install it in **Trusted Root Certification Authorities**.
-3. Open `HandyExtension.msix` and choose **Install**. For future updates signed by this project certificate, install the new MSIX; you do not need to import the certificate again.
+3. Open `HandyExtension.msix` and choose **Install**. For future updates signed by this project certificate, install the new MSIX; you do not need to import the certificate again. Before installing an update, exit PowerToys from its tray menu: while the Command Palette is running it keeps the installed package in use, and the update fails with error `0x80073CF8`.
 4. Install and open Handy, ensure PowerToys Command Palette is enabled, then run **Reload Command Palette Extension** and choose Handy.
 
 This certificate identifies the package publisher and lets Windows verify that the signed package has not changed. It is self-signed, not issued by a public certificate authority; you are choosing to trust this publisher on this computer. The release workflow builds and signs the MSIX on GitHub Actions. Its private key is stored as encrypted GitHub Actions secrets and is never included in the repository or release.
@@ -68,6 +68,7 @@ The automated tests cover executable path selection and discovery; they do not r
 - **A control command did not act:** open Handy once, confirm the installed Handy version supports the flag, then retry. The extension cannot inspect Handy's recording state.
 - **Windows says the publisher is unknown or the package is untrusted:** install the release's `.cer` into **Local Machine > Trusted People**, then try the MSIX again.
 - **The updated extension is not visible:** install the updated MSIX and run **Reload Command Palette Extension**.
+- **An update fails with error `0x80073CF8` ("the user canceled the install request"):** the installed package is still in use by the running Command Palette. Fully exit PowerToys from its tray menu, which also stops the Command Palette host and any loaded extension, then install the MSIX again and start PowerToys. If the dialog keeps failing, close PowerToys and run `Add-AppxPackage -Path .\HandyExtension.msix` in PowerShell instead.
 
 ## Privacy and security
 

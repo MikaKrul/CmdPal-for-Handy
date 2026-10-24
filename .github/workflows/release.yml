@@ -94,7 +94,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$env:PACKAGE_TAG" release-output/HandyExtension.msix release-output/HandyExtension.cer release-output/SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "HandyExtension $env:PACKAGE_TAG" --notes "Install the included HandyExtension.cer into Local Computer > Trusted People before installing HandyExtension.msix. The certificate is self-signed and is trusted only after you install it. See the README installation instructions."
+          gh release create "$env:PACKAGE_TAG" release-output/HandyExtension.msix release-output/HandyExtension.cer release-output/SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "HandyExtension $env:PACKAGE_TAG" --notes "Install the included HandyExtension.cer into Local Computer > Trusted People before installing HandyExtension.msix. The certificate is self-signed and is trusted only after you install it. Exit PowerToys before installing an update: a running Command Palette keeps the package in use and the install fails with error 0x80073CF8. See the README installation instructions."
           if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
 
       - name: Remove signing key
