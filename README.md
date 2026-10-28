@@ -1,4 +1,4 @@
-# HandyExtension
+# CmdPal for Handy
 
 A PowerToys Command Palette extension for [Handy](https://github.com/cjpais/Handy), the speech-to-text app. This is an independent project and is not affiliated with the Handy maintainers in any way.
 
@@ -28,7 +28,7 @@ The layout is saved in `%LOCALAPPDATA%\HandyExtension\menu.json` as one `"comman
 
 ## Install
 
-Download the newest [release](https://github.com/MikaKrul/HandyExtension/releases/latest). It contains the signed MSIX, the public signing certificate, and a SHA-256 checksum. You do not need Visual Studio or the .NET SDK.
+Download the newest [release](https://github.com/MikaKrul/cmdpal-for-handy/releases/latest). It contains the signed MSIX, the public signing certificate, and a SHA-256 checksum. You do not need Visual Studio or the .NET SDK.
 
 1. The package is signed with a self-signed certificate, so trust the publisher once. In PowerShell as Administrator, from the download folder, run:
 
